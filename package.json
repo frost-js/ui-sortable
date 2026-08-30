@@ -1,21 +1,41 @@
 {
     "name": "@fr0st/ui-sortable",
-    "version": "2.0.5",
-    "description": "FrostUI-Sortable is a free, open-source Sortable component for Javascript.",
+    "version": "3.0.0",
+    "private": false,
+    "description": "Drag-and-drop sortable lists for Frost UI with handles, connected containers, axis control, and automatic scrolling.",
     "keywords": [
-        "ui",
         "component",
+        "drag-and-drop",
+        "frost",
+        "frontend",
+        "javascript",
         "sortable",
-        "front-end",
-        "web"
+        "ui"
     ],
-    "homepage": "https://github.com/elusivecodes/FrostUI-Sortable",
+    "homepage": "https://github.com/frost-js/ui-sortable",
     "bugs": {
-        "url": "https://github.com/elusivecodes/FrostUI-Sortable/issues",
+        "url": "https://github.com/frost-js/ui-sortable/issues",
         "email": "elusivecodes@gmail.com"
     },
-    "main": "src/index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/frost-js/ui-sortable.git"
+    },
+    "license": "MIT",
+    "author": "Elusive <elusivecodes@gmail.com>",
     "type": "module",
+    "exports": {
+        ".": {
+            "import": "./dist/frost-ui-sortable.esm.js",
+            "default": "./dist/frost-ui-sortable.esm.js"
+        },
+        "./dist/*": "./dist/*",
+        "./src/*": "./src/*"
+    },
+    "main": "./dist/frost-ui-sortable.esm.js",
+    "jsdelivr": "./dist/frost-ui-sortable.min.js",
+    "unpkg": "./dist/frost-ui-sortable.min.js",
+    "module": "./dist/frost-ui-sortable.esm.js",
     "files": [
         "dist",
         "LICENSE",
@@ -23,22 +43,27 @@
         "src"
     ],
     "scripts": {
-        "build": "npm run js-compile && npm run js-minify",
-        "js-compile": "rollup --config",
-        "js-lint": "eslint",
-        "js-minify": "terser --compress passes=2 --mangle --source-map \"content=dist/frost-ui-sortable.js.map\" --output dist/frost-ui-sortable.min.js dist/frost-ui-sortable.js"
+        "build": "vite build && vite build --mode umd",
+        "lint": "eslint"
     },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/elusivecodes/FrostUI-Sortable.git"
-    },
-    "author": "Elusive",
-    "license": "MIT",
+    "browserslist": [
+        "baseline newly available"
+    ],
     "devDependencies": {
-        "@fr0st/eslint-config": "^1.0.3",
-        "@rollup/plugin-node-resolve": "^16.0.1",
-        "eslint": "^9.26.0",
-        "rollup": "^4.40.2",
-        "terser": "^5.39.1"
+        "@fr0st/eslint-config": "^5.0.3",
+        "@fr0st/query": "^4.1.2",
+        "@fr0st/ui": "^3.0.0",
+        "eslint": "^10.9.1",
+        "vite": "^8.2.2"
+    },
+    "peerDependencies": {
+        "@fr0st/query": "^4.1.2",
+        "@fr0st/ui": "^3.0.0"
+    },
+    "engines": {
+        "node": "^20.19.0 || ^22.13.0 || >=24"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }
