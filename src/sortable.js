@@ -1,6 +1,9 @@
 import $ from '@fr0st/query';
 import { BaseComponent, getPosition } from '@fr0st/ui';
 
+const document = $.getContext();
+const window = $.getWindow();
+
 /** @typedef {'x'|'y'} SortableAxis */
 
 /**
@@ -16,19 +19,41 @@ import { BaseComponent, getPosition } from '@fr0st/ui';
  * @property {string} [items=':scope > li'] The selector for sortable items.
  * @property {boolean} [scroll=true] Whether to scroll the window while sorting near an edge.
  * @property {number} [scrollSensitivity=20] The distance from a window edge that starts scrolling, in pixels.
- * @property {number} [scrollSpeed=5] The scroll distance applied on each update, in pixels.
+ * @property {number} [scrollSpeed=5] The scroll distance applied per animation frame, in pixels.
  */
+
+/**
+ * @typedef {object} SortableEventData
+ * @property {HTMLElement} item The item being sorted.
+ * @property {HTMLElement} from The previous or original Sortable container.
+ * @property {HTMLElement} to The next or final Sortable container.
+ * @property {number} oldIndex The previous or original item index.
+ * @property {number} newIndex The next or final item index.
+ */
+
+/**
+ * @typedef {object} CursorState
+ * @property {Map<object, string>} owners The Sortable cursor owners and their values.
+ * @property {string} priority The original inline cursor priority.
+ * @property {string} value The original inline cursor value.
+ */
+
+/** @type {WeakMap<HTMLElement, CursorState>} */
+const cursorStates = new WeakMap();
 
 /**
  * Controls a sortable collection of elements.
  * @augments {BaseComponent<SortableOptions>}
  */
 export default class Sortable extends BaseComponent {
-    #checkScrollTimer;
     #currentIndex;
     #currentSortable;
+    #cursorElements;
+    #dragging;
     #enabled;
+    #helperClassesAdded;
     #pos;
+    #scrollFrame;
     #selector;
     #startIndex;
     #target;
@@ -46,7 +71,10 @@ export default class Sortable extends BaseComponent {
             this.#selector += ` ${this.options.handle}`;
         }
 
+        this.#cursorElements = new Set();
+        this.#dragging = false;
         this.#enabled = !this.options.disabled;
+        this.#helperClassesAdded = [];
 
         this.#refreshCursors();
         this.#events();
@@ -61,13 +89,16 @@ export default class Sortable extends BaseComponent {
 
     /** @inheritdoc */
     dispose() {
-        $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
-        $.removeEvent(this.node, 'receive.ui.sortable');
+        if (!this.node) {
+            return;
+        }
 
-        clearTimeout(this.#checkScrollTimer);
-        this.#checkScrollTimer = null;
-        this.#target = null;
-        this.#currentSortable = null;
+        $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
+        $.removeEvent(this.node, 'send.ui.sortable receive.ui.sortable');
+
+        this.#resetDrag();
+        this.#restoreCursors();
+        this.#enabled = false;
 
         super.dispose();
     }
@@ -91,42 +122,46 @@ export default class Sortable extends BaseComponent {
      * Checks whether the window should scroll while sorting.
      */
     #checkScroll() {
-        $.hide(this.#target);
+        this.#scrollFrame = null;
+
+        if (!this.node || !this.#dragging || !this.#target || !this.#pos) {
+            return;
+        }
 
         const originalX = $.getScrollX(window);
         const originalY = $.getScrollY(window);
+        const windowHeight = $.height(window);
+        const windowWidth = $.width(window);
 
         let offsetX = originalX;
         let offsetY = originalY;
 
         if (this.#pos.y < originalY + this.options.scrollSensitivity) {
             offsetY = Math.max(0, originalY - this.options.scrollSpeed);
-        } else if (this.#pos.y > originalY + $.height(window) - this.options.scrollSensitivity) {
+        } else if (this.#pos.y > originalY + windowHeight - this.options.scrollSensitivity) {
             const docHeight = $.height(document, { boxSize: $.SCROLL_BOX });
-            offsetY = Math.min(docHeight, originalY + this.options.scrollSpeed);
+            const maxY = Math.max(0, docHeight - windowHeight);
+            offsetY = Math.min(maxY, originalY + this.options.scrollSpeed);
         }
 
         if (this.#pos.x < originalX + this.options.scrollSensitivity) {
             offsetX = Math.max(0, originalX - this.options.scrollSpeed);
-        } else if (this.#pos.x > originalX + $.width(window) - this.options.scrollSensitivity) {
+        } else if (this.#pos.x > originalX + windowWidth - this.options.scrollSensitivity) {
             const docWidth = $.width(document, { boxSize: $.SCROLL_BOX });
-            offsetX = Math.min(docWidth, originalX + this.options.scrollSpeed);
+            const maxX = Math.max(0, docWidth - windowWidth);
+            offsetX = Math.min(maxX, originalX + this.options.scrollSpeed);
         }
 
-        if (offsetX !== originalX || offsetY !== originalY) {
-            $.setStyle(':root', { scrollBehavior: 'initial' });
-            $.setScroll(document, offsetX, offsetY);
-            $.setStyle(':root', { scrollBehavior: '' });
-
-            this.#pos.x += offsetX - originalX;
-            this.#pos.y += offsetY - originalY;
+        if (offsetX === originalX && offsetY === originalY) {
+            return;
         }
 
-        $.show(this.#target);
+        $.setScroll(document, offsetX, offsetY);
 
-        this.#checkScrollTimer = setTimeout((_) => {
-            this.#checkScroll();
-        }, 0);
+        this.#pos.x += offsetX - originalX;
+        this.#pos.y += offsetY - originalY;
+
+        this.#scheduleScroll();
     }
 
     /**
@@ -134,10 +169,17 @@ export default class Sortable extends BaseComponent {
      */
     #events() {
         const downEvent = (e) => {
+            const cancelled = this.options.cancel &&
+                (
+                    $.is(e.target, this.options.cancel) ||
+                    $.is(e.currentTarget, this.options.cancel) ||
+                    $.closest(e.target, this.options.cancel, e.currentTarget).length
+                );
+
             if (
                 e.button ||
                 !this.#enabled ||
-                $.is(e.currentTarget, this.options.cancel) ||
+                cancelled ||
                 $.getDataset(this.node, 'uiDragging')
             ) {
                 return false;
@@ -146,31 +188,53 @@ export default class Sortable extends BaseComponent {
             this.#target = this.options.handle ?
                 this.items().find((node) => $.hasDescendent(node, e.currentTarget)) :
                 e.currentTarget;
+
+            if (!this.#target) {
+                return false;
+            }
         };
 
         const moveEvent = (e) => {
+            if (!this.node || !this.#target) {
+                return;
+            }
+
             this.#pos = getPosition(e);
 
-            if (!$.getDataset(this.node, 'uiDragging')) {
-                $.setDataset(this.node, { uiDragging: true });
-
-                this.#startIndex = $.index(this.#target);
+            if (!this.#dragging) {
+                this.#dragging = true;
+                this.#currentSortable = this.node;
+                this.#startIndex = this.items().indexOf(this.#target);
                 this.#currentIndex = this.#startIndex;
 
+                $.setDataset(this.node, { uiDragging: true });
+
+                /** @type {SortableEventData} */
+                const eventData = {
+                    item: this.#target,
+                    from: this.node,
+                    to: this.node,
+                    oldIndex: this.#startIndex,
+                    newIndex: this.#startIndex,
+                };
+
                 $.triggerEvent(this.node, 'sort.ui.sortable', {
+                    data: eventData,
                     detail: {
                         target: this.#target,
+                        ...eventData,
                     },
                 });
 
                 if (this.options.helperClass) {
-                    $.addClass(this.#target, this.options.helperClass);
-                }
+                    const helperClasses = this.options.helperClass
+                        .split(/\s+/)
+                        .filter(Boolean);
 
-                this.#currentSortable = this.node;
+                    this.#helperClassesAdded = helperClasses
+                        .filter((className) => !this.#target.classList.contains(className));
 
-                if (this.options.scroll) {
-                    this.#checkScroll();
+                    $.addClass(this.#target, this.#helperClassesAdded);
                 }
             }
 
@@ -178,10 +242,12 @@ export default class Sortable extends BaseComponent {
 
             if (this.options.connectWith) {
                 const connected = $.find(this.options.connectWith)
+                    .filter((node) => !$.isSame(node, this.node))
                     .filter((node) => {
                         const sortable = this.constructor.init(node);
 
-                        return sortable.options.dropOnEmpty || sortable.items().length;
+                        return sortable.#enabled &&
+                            (sortable.options.dropOnEmpty || sortable.items().length);
                     });
 
                 if (connected.length) {
@@ -194,10 +260,8 @@ export default class Sortable extends BaseComponent {
                 }
             }
 
-            const nearestItems = $.isSame(this.node, nearestSortable) ?
-                this.items() :
-                this.constructor.init(nearestSortable).items();
-
+            const nearestInstance = this.constructor.init(nearestSortable);
+            const nearestItems = nearestInstance.items();
             const nearestItem = $.nearestTo(
                 nearestItems,
                 this.#pos.x,
@@ -205,40 +269,81 @@ export default class Sortable extends BaseComponent {
                 { offset: true },
             );
 
-            if (!nearestItem) {
+            if (nearestItem) {
+                this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y);
+            } else if (!$.isSame(nearestSortable, this.#currentSortable)) {
+                $.append(nearestSortable, this.#target);
+            } else {
+                this.#scheduleScroll();
                 return;
             }
 
-            this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y);
-
-            const newIndex = $.index(this.#target);
+            const newIndex = nearestInstance.items().indexOf(this.#target);
 
             if (!$.isSame(nearestSortable, this.#currentSortable)) {
-                $.triggerEvent(this.#currentSortable, 'send.ui.sortable', {
+                const previousSortable = this.#currentSortable;
+                /** @type {SortableEventData} */
+                const eventData = {
+                    item: this.#target,
+                    from: previousSortable,
+                    to: nearestSortable,
+                    oldIndex: this.#currentIndex,
+                    newIndex,
+                };
+
+                $.triggerEvent(previousSortable, 'send.ui.sortable', {
+                    data: eventData,
                     detail: {
                         target: this.#target,
+                        ...eventData,
                     },
                 });
 
+                if (!this.node) {
+                    return;
+                }
+
                 $.triggerEvent(nearestSortable, 'receive.ui.sortable', {
+                    data: eventData,
                     detail: {
                         target: this.#target,
+                        ...eventData,
                     },
                 });
             } else if (this.#currentIndex !== newIndex) {
+                /** @type {SortableEventData} */
+                const eventData = {
+                    item: this.#target,
+                    from: nearestSortable,
+                    to: nearestSortable,
+                    oldIndex: this.#currentIndex,
+                    newIndex,
+                };
+
                 $.triggerEvent(nearestSortable, 'sorting.ui.sortable', {
+                    data: eventData,
                     detail: {
                         target: this.#target,
+                        ...eventData,
                     },
                 });
+            }
+
+            if (!this.node) {
+                return;
             }
 
             this.#currentIndex = newIndex;
             this.#currentSortable = nearestSortable;
+            this.#scheduleScroll();
         };
 
         const upEvent = (e) => {
-            if (!$.getDataset(this.node, 'uiDragging')) {
+            if (!this.node) {
+                return;
+            }
+
+            if (!this.#dragging) {
                 this.#target = null;
                 return;
             }
@@ -247,35 +352,62 @@ export default class Sortable extends BaseComponent {
                 e.preventDefault();
             }
 
-            $.triggerEvent(this.#currentSortable, 'sorted.ui.sortable', {
+            const source = this.node;
+            const destination = this.#currentSortable;
+            /** @type {SortableEventData} */
+            const eventData = {
+                item: this.#target,
+                from: source,
+                to: destination,
+                oldIndex: this.#startIndex,
+                newIndex: this.#currentIndex,
+            };
+
+            $.triggerEvent(destination, 'sorted.ui.sortable', {
+                data: eventData,
                 detail: {
                     target: this.#target,
+                    ...eventData,
                 },
             });
 
-            if (this.options.helperClass) {
-                $.removeClass(this.#target, this.options.helperClass);
+            if (!this.node) {
+                return;
             }
 
-            if (
-                this.#currentIndex !== this.#startIndex ||
-                !$.isSame(this.#currentSortable, this.node)
-            ) {
-                $.triggerEvent(this.#currentSortable, 'update.ui.sortable', {
+            this.#restoreHelperClasses();
+
+            if (!$.isSame(source, destination)) {
+                $.triggerEvent(source, 'update.ui.sortable', {
+                    data: eventData,
                     detail: {
                         target: this.#target,
+                        ...eventData,
+                    },
+                });
+
+                if (this.node) {
+                    $.triggerEvent(destination, 'update.ui.sortable', {
+                        data: eventData,
+                        detail: {
+                            target: this.#target,
+                            ...eventData,
+                        },
+                    });
+                }
+            } else if (this.#currentIndex !== this.#startIndex) {
+                $.triggerEvent(destination, 'update.ui.sortable', {
+                    data: eventData,
+                    detail: {
+                        target: this.#target,
+                        ...eventData,
                     },
                 });
             }
 
-            $.removeDataset(this.node, 'uiDragging');
-
-            clearTimeout(this.#checkScrollTimer);
-            this.#checkScrollTimer = null;
-            this.#target = null;
-            this.#currentSortable = null;
-            this.#currentIndex = null;
-            this.#startIndex = null;
+            if (this.node) {
+                this.#resetDrag();
+            }
         };
 
         const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
@@ -287,18 +419,132 @@ export default class Sortable extends BaseComponent {
             dragEvent,
         );
 
-        $.addEvent(this.node, 'receive.ui.sortable', (_) => {
+        $.addEvent(this.node, 'send.ui.sortable receive.ui.sortable', (_) => {
             this.#refreshCursors();
         });
     }
 
     /**
-     * Refreshes Sortable item cursors.
+     * Refreshes Sortable item cursors and restores removed items.
      */
     #refreshCursors() {
-        const elements = $.find(this.#selector, this.node);
+        const elements = new Set($.find(this.#selector, this.node));
 
-        $.setStyle(elements, { cursor: this.options.cursor });
+        for (const element of this.#cursorElements) {
+            if (elements.has(element)) {
+                continue;
+            }
+
+            this.#releaseCursor(element);
+            this.#cursorElements.delete(element);
+        }
+
+        for (const element of elements) {
+            let state = cursorStates.get(element);
+
+            if (!state) {
+                state = {
+                    owners: new Map(),
+                    priority: element.style.getPropertyPriority('cursor'),
+                    value: element.style.getPropertyValue('cursor'),
+                };
+                cursorStates.set(element, state);
+            }
+
+            state.owners.set(this, this.options.cursor);
+            this.#cursorElements.add(element);
+            element.style.setProperty('cursor', this.options.cursor);
+        }
+    }
+
+    /**
+     * Releases this Sortable's cursor ownership for an element.
+     * @param {HTMLElement} element The cursor element.
+     */
+    #releaseCursor(element) {
+        const state = cursorStates.get(element);
+
+        if (!state) {
+            return;
+        }
+
+        state.owners.delete(this);
+
+        if (state.owners.size) {
+            const values = Array.from(state.owners.values());
+            element.style.setProperty('cursor', values.at(-1));
+            return;
+        }
+
+        if (state.value) {
+            element.style.setProperty('cursor', state.value, state.priority);
+        } else {
+            element.style.removeProperty('cursor');
+        }
+
+        cursorStates.delete(element);
+    }
+
+    /**
+     * Resets the active drag state.
+     */
+    #resetDrag() {
+        this.#restoreHelperClasses();
+
+        if (this.#scrollFrame !== null && this.#scrollFrame !== undefined) {
+            window.cancelAnimationFrame(this.#scrollFrame);
+        }
+
+        if (this.#dragging && this.node) {
+            $.removeDataset(this.node, 'uiDragging');
+        }
+
+        this.#currentIndex = null;
+        this.#currentSortable = null;
+        this.#dragging = false;
+        this.#pos = null;
+        this.#scrollFrame = null;
+        this.#startIndex = null;
+        this.#target = null;
+    }
+
+    /**
+     * Restores cursor styles owned by this Sortable.
+     */
+    #restoreCursors() {
+        for (const element of this.#cursorElements) {
+            this.#releaseCursor(element);
+        }
+
+        this.#cursorElements.clear();
+    }
+
+    /**
+     * Restores helper classes added for the active drag.
+     */
+    #restoreHelperClasses() {
+        if (this.#target && this.#helperClassesAdded.length) {
+            $.removeClass(this.#target, this.#helperClassesAdded);
+        }
+
+        this.#helperClassesAdded = [];
+    }
+
+    /**
+     * Schedules the next auto-scroll update.
+     */
+    #scheduleScroll() {
+        if (
+            !this.options.scroll ||
+            !this.#dragging ||
+            this.#scrollFrame !== null && this.#scrollFrame !== undefined
+        ) {
+            return;
+        }
+
+        this.#scrollFrame = window.requestAnimationFrame((_) => {
+            this.#checkScroll();
+        });
     }
 
     /**
