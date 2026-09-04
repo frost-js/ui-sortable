@@ -26,7 +26,5 @@ export async function drag(page, sourceSelector, destinationSelector, { x = 0.5,
         destinationBox.y + destinationBox.height * y,
         { steps: 8 },
     );
-    await page.waitForTimeout(32);
     await page.mouse.up();
-    await page.waitForTimeout(32);
 }
