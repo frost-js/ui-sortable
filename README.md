@@ -347,21 +347,12 @@ Source and bundles target the Baseline Widely Available feature set. The automat
 ## Development
 
 ```bash
-npm install
+npm test
 npm run lint
 npm run build
-npm test
-npm run test:coverage
 ```
 
-Additional Playwright commands:
-
-```bash
-npm run test:headed
-npm run test:ui
-```
-
-The demo is available at [`demo/index.html`](./demo/index.html) after building the project.
+`npm test` builds the bundles and runs the Playwright suite in Chromium, Firefox, and WebKit.
 
 ## License
 
