@@ -44,7 +44,12 @@
     ],
     "scripts": {
         "build": "vite build && vite build --mode umd",
-        "lint": "eslint"
+        "lint": "eslint",
+        "test": "npm run build && npm run test:browser",
+        "test:browser": "playwright test --forbid-only",
+        "test:coverage": "playwright test --config=playwright.coverage.config.js --forbid-only",
+        "test:headed": "playwright test --forbid-only --headed",
+        "test:ui": "playwright test --ui"
     },
     "browserslist": [
         "baseline newly available"
@@ -52,8 +57,10 @@
     "devDependencies": {
         "@fr0st/eslint-config": "^5.0.3",
         "@fr0st/query": "^4.1.2",
-        "@fr0st/ui": "^3.0.0",
+        "@fr0st/ui": "^3.0.3",
+        "@playwright/test": "^1.62.1",
         "eslint": "^10.9.1",
+        "monocart-reporter": "^2.12.6",
         "vite": "^8.2.2"
     },
     "peerDependencies": {

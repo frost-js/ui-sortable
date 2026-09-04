@@ -51,6 +51,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @property {boolean} [scroll=true] Whether to scroll the window while sorting near an edge.
 	* @property {number} [scrollSensitivity=20] The distance from a window edge that starts scrolling, in pixels.
 	* @property {number} [scrollSpeed=5] The scroll distance applied per animation frame, in pixels.
+	* @property {number} [swapThreshold=0.25] The fraction of an item crossed before swapping, from `0` to `1`.
 	*/
 	/**
 	* @typedef {object} SortableEventData
@@ -73,6 +74,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @augments {BaseComponent<SortableOptions>}
 	*/
 	var Sortable = class extends _fr0st_ui.BaseComponent {
+		/** @type {SortableOptions} */
+		static defaults = {
+			axis: null,
+			cancel: "input, textarea, button, select, option",
+			connectWith: null,
+			cursor: "auto",
+			disabled: false,
+			dropOnEmpty: true,
+			handle: null,
+			helperClass: "bg-body-tertiary",
+			items: ":scope > li",
+			scroll: true,
+			scrollSensitivity: 20,
+			scrollSpeed: 5,
+			swapThreshold: .25
+		};
 		#currentIndex;
 		#currentSortable;
 		#cursorElements;
@@ -154,7 +171,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				offsetX = Math.min(maxX, originalX + this.options.scrollSpeed);
 			}
 			if (offsetX === originalX && offsetY === originalY) return;
+			const scrollElement = document.scrollingElement;
+			const scrollBehavior = scrollElement.style.getPropertyValue("scroll-behavior");
+			const scrollBehaviorPriority = scrollElement.style.getPropertyPriority("scroll-behavior");
+			scrollElement.style.setProperty("scroll-behavior", "auto", "important");
 			_fr0st_query.default.setScroll(document, offsetX, offsetY);
+			scrollElement.style.setProperty("scroll-behavior", scrollBehavior, scrollBehaviorPriority);
 			this.#pos.x += offsetX - originalX;
 			this.#pos.y += offsetY - originalY;
 			this.#scheduleScroll();
@@ -171,7 +193,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			const moveEvent = (e) => {
 				if (!this.node || !this.#target) return;
+				const previousPos = this.#pos;
 				this.#pos = (0, _fr0st_ui.getPosition)(e);
+				const deltaX = previousPos ? this.#pos.x - previousPos.x : 0;
+				const deltaY = previousPos ? this.#pos.y - previousPos.y : 0;
 				if (!this.#dragging) {
 					this.#dragging = true;
 					this.#currentSortable = this.node;
@@ -193,6 +218,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 							...eventData
 						}
 					});
+					if (!this.node) return;
 					if (this.options.helperClass) {
 						const helperClasses = this.options.helperClass.split(/\s+/).filter(Boolean);
 						this.#helperClassesAdded = helperClasses.filter((className) => !this.#target.classList.contains(className));
@@ -208,9 +234,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					if (connected.length) nearestSortable = _fr0st_query.default.nearestTo([this.node, ...connected], this.#pos.x, this.#pos.y, { offset: true });
 				}
 				const nearestInstance = this.constructor.init(nearestSortable);
-				const nearestItems = nearestInstance.items();
+				const nearestItems = nearestInstance.items().filter((node) => !_fr0st_query.default.isSame(node, this.#target));
 				const nearestItem = _fr0st_query.default.nearestTo(nearestItems, this.#pos.x, this.#pos.y, { offset: true });
-				if (nearestItem) this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y);
+				if (nearestItem) this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y, deltaX, deltaY);
 				else if (!_fr0st_query.default.isSame(nearestSortable, this.#currentSortable)) _fr0st_query.default.append(nearestSortable, this.#target);
 				else {
 					this.#scheduleScroll();
@@ -405,36 +431,32 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {HTMLElement} nearestItem The nearest item.
 		* @param {number} x The mouse X position.
 		* @param {number} y The mouse Y position.
+		* @param {number} deltaX The horizontal pointer movement.
+		* @param {number} deltaY The vertical pointer movement.
 		*/
-		#updateTarget(nearestItem, x, y) {
+		#updateTarget(nearestItem, x, y, deltaX, deltaY) {
 			const nearestCenter = _fr0st_query.default.center(nearestItem, { offset: true });
+			const nearestRect = _fr0st_query.default.rect(nearestItem, { offset: true });
 			const targetCenter = _fr0st_query.default.center(this.#target, { offset: true });
+			const threshold = Math.min(1, Math.max(0, this.options.swapThreshold));
+			let thresholdX = .5;
+			let thresholdY = .5;
+			if (deltaX) thresholdX = deltaX > 0 ? threshold : 1 - threshold;
+			if (deltaY) thresholdY = deltaY > 0 ? threshold : 1 - threshold;
 			let method;
-			if (this.options.axis === "y" || nearestCenter.x === targetCenter.x) method = y < nearestCenter.y ? "before" : "after";
-			else if (this.options.axis === "x" || nearestCenter.y === targetCenter.y) method = x < nearestCenter.x ? "before" : "after";
-			else method = x < nearestCenter.x && y < nearestCenter.y ? "before" : "after";
+			if (this.options.axis === "y" || nearestCenter.x === targetCenter.x) method = y < nearestRect.top + nearestRect.height * thresholdY ? "before" : "after";
+			else if (this.options.axis === "x" || nearestCenter.y === targetCenter.y) method = x < nearestRect.left + nearestRect.width * thresholdX ? "before" : "after";
+			else {
+				const swapX = nearestRect.left + nearestRect.width * thresholdX;
+				const swapY = nearestRect.top + nearestRect.height * thresholdY;
+				method = x < swapX && y < swapY ? "before" : "after";
+			}
 			_fr0st_query.default[method](nearestItem, this.#target);
 		}
 	};
 
 //#endregion
 //#region src/index.js
-/** @import { SortableOptions } from './sortable.js'; */
-	/** @type {SortableOptions} */
-	Sortable.defaults = {
-		axis: null,
-		cancel: "input, textarea, button, select, option",
-		connectWith: null,
-		cursor: "auto",
-		disabled: false,
-		dropOnEmpty: true,
-		handle: null,
-		helperClass: "bg-body-tertiary",
-		items: ":scope > li",
-		scroll: true,
-		scrollSensitivity: 20,
-		scrollSpeed: 5
-	};
 	(0, _fr0st_ui.initComponent)("sortable", Sortable);
 	var src_default = Sortable;
 

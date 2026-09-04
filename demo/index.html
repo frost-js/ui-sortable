@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Frost UI Sortable Demo</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+    <link rel="stylesheet" href="assets/demo.css">
+    <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui-bundle.min.js"></script>
+    <script src="../dist/frost-ui-sortable.js"></script>
+    <script src="assets/demo.js"></script>
+</head>
+
+<body>
+    <header class="navbar bg-glass sticky-top border-bottom">
+        <div class="container d-flex align-items-center justify-content-between gap-3">
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
+                <span class="badge bg-primary bg-gradient shadow-glow fs-5" aria-hidden="true">F</span>
+                <span>Sortable</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small fw-bold mb-0" for="demo-theme">Theme</label>
+                <select class="input-outline input-sm w-auto rounded-pill" id="demo-theme" data-demo-theme>
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="container py-4 py-lg-5" id="top">
+        <section class="card border-0 overflow-hidden shadow-lg mb-5">
+            <div class="row g-0 align-items-stretch">
+                <div class="col-lg-7 d-flex align-items-center bg-ambient">
+                    <div class="p-4 p-md-5">
+                        <span class="badge bg-primary-subtle text-primary-subtle mb-3">Frost UI v3 component</span>
+                        <h1 class="display-2 mb-4">Put every item in <span class="text-gradient">its place.</span></h1>
+                        <p class="lead text-body-secondary mb-4">Reorder items, drag from handles, connect containers, accept empty drops, and follow every lifecycle event.</p>
+                        <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
+                            <a class="btn btn-primary ripple" href="#basic">Start sorting</a>
+                            <a class="btn btn-secondary ripple" href="#connected">Connect lists</a>
+                            <a class="btn btn-outline-primary ripple" href="#methods-events">Try the API</a>
+                        </nav>
+                    </div>
+                </div>
+                <div class="col-lg-5 bg-glass border-start">
+                    <div class="p-4 p-md-5">
+                        <small class="text-body-secondary d-block mb-2">Drag to reorder</small>
+                        <ul class="demo-sortable list-group shadow-sm" data-ui-toggle="sortable" data-ui-cursor="grab">
+                            <li class="list-group-item">Plan the migration</li>
+                            <li class="list-group-item">Update the component</li>
+                            <li class="list-group-item">Add browser tests</li>
+                            <li class="list-group-item">Ship the release</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-5" id="basic">
+            <header class="border-bottom pb-3 mb-4">
+                <span class="text-primary fw-bold">Core behavior</span>
+                <h2 class="h3 mb-1">Default sorting and drag handles</h2>
+                <p class="text-body-secondary mb-0">Items swap after the pointer crosses the first quarter of a neighbor. Use the whole item as the drag target, or narrow interaction to a dedicated handle.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <span class="badge bg-secondary-subtle text-secondary-subtle mb-3">Default</span>
+                            <h3 class="h5">Whole-item dragging</h3>
+                            <p class="text-body-secondary">Each direct list item can start a sort.</p>
+                            <ul class="demo-sortable list-group" data-ui-toggle="sortable" data-ui-cursor="grab">
+                                <li class="list-group-item">Research</li>
+                                <li class="list-group-item">Design</li>
+                                <li class="list-group-item">Build</li>
+                                <li class="list-group-item">Review</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <span class="badge bg-accent-subtle text-accent-subtle mb-3">Handle</span>
+                            <h3 class="h5">Dedicated drag controls</h3>
+                            <p class="text-body-secondary">Drag the badge. The action buttons remain excluded by the default cancel selector.</p>
+                            <ul
+                                class="demo-sortable list-group"
+                                data-ui-toggle="sortable"
+                                data-ui-cursor="grab"
+                                data-ui-handle=".demo-handle">
+                                <li class="list-group-item d-flex align-items-center gap-3">
+                                    <span class="demo-handle badge bg-secondary">Drag</span>
+                                    <span class="flex-grow-1">Backlog</span>
+                                    <button class="btn btn-sm btn-outline-danger" type="button">Delete</button>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center gap-3">
+                                    <span class="demo-handle badge bg-secondary">Drag</span>
+                                    <span class="flex-grow-1">In progress</span>
+                                    <button class="btn btn-sm btn-outline-danger" type="button">Delete</button>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center gap-3">
+                                    <span class="demo-handle badge bg-secondary">Drag</span>
+                                    <span class="flex-grow-1">Complete</span>
+                                    <button class="btn btn-sm btn-outline-danger" type="button">Delete</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-5" id="connected">
+            <header class="border-bottom pb-3 mb-4">
+                <span class="text-accent fw-bold">Connected containers</span>
+                <h2 class="h3 mb-1">Move work between lists</h2>
+                <p class="text-body-secondary mb-0">Both lists share a selector. The empty destination remains a valid drop target because it has a visible minimum height.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h3 class="h5 mb-0">Available</h3>
+                            <span class="badge bg-primary-subtle text-primary-subtle">Source</span>
+                        </div>
+                        <ul
+                            class="demo-connected demo-sortable list-group"
+                            data-ui-toggle="sortable"
+                            data-ui-connect-with=".demo-connected"
+                            data-ui-cursor="grab">
+                            <li class="list-group-item">Accessibility review</li>
+                            <li class="list-group-item">Cross-browser checks</li>
+                            <li class="list-group-item">Release notes</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 p-4">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h3 class="h5 mb-0">Selected</h3>
+                            <span class="badge bg-success-subtle text-success-subtle">Empty drops enabled</span>
+                        </div>
+                        <ul
+                            class="demo-connected demo-sortable list-group"
+                            data-ui-toggle="sortable"
+                            data-ui-connect-with=".demo-connected"
+                            data-ui-cursor="grab"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-5" id="axis">
+            <header class="border-bottom pb-3 mb-4">
+                <span class="text-success fw-bold">Axis control</span>
+                <h2 class="h3 mb-1">Horizontal sorting</h2>
+                <p class="text-body-secondary mb-0">Constrain placement decisions to the x axis for rows, toolbars, and horizontally scrolling collections.</p>
+            </header>
+            <div class="card card-body p-4">
+                <ul
+                    class="demo-sortable demo-sortable-horizontal list-group list-group-horizontal"
+                    data-ui-toggle="sortable"
+                    data-ui-axis="x"
+                    data-ui-cursor="ew-resize">
+                    <li class="list-group-item">Overview</li>
+                    <li class="list-group-item">Activity</li>
+                    <li class="list-group-item">Files</li>
+                    <li class="list-group-item">Settings</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="mb-5" id="methods-events">
+            <header class="border-bottom pb-3 mb-4">
+                <span class="text-primary fw-bold">Programmatic API</span>
+                <h2 class="h3 mb-1">Methods and lifecycle events</h2>
+                <p class="text-body-secondary mb-0">Control an instance directly and inspect normalized item, container, and index data from every sort.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-xl-7">
+                    <div class="card h-100">
+                        <div class="card-body p-4">
+                            <ul class="demo-sortable list-group mb-4" id="methods-list" data-ui-toggle="sortable" data-ui-cursor="grab">
+                                <li class="list-group-item">Alpha</li>
+                                <li class="list-group-item">Bravo</li>
+                                <li class="list-group-item">Charlie</li>
+                                <li class="list-group-item">Delta</li>
+                            </ul>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button class="btn btn-primary ripple" data-demo-method="init" type="button">Init</button>
+                                <button class="btn btn-outline-danger ripple" data-demo-method="dispose" type="button">Dispose</button>
+                                <button class="btn btn-outline-success ripple" data-demo-method="enable" type="button">Enable</button>
+                                <button class="btn btn-outline-warning ripple" data-demo-method="disable" type="button">Disable</button>
+                            </div>
+                            <output class="small text-body-secondary" id="method-output" aria-live="polite">Ready.</output>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-5">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                            <strong>Event log</strong>
+                            <button class="btn btn-sm btn-outline-secondary" id="clear-events" type="button">Clear</button>
+                        </div>
+                        <div class="card-body demo-event-log overflow-y-auto" id="event-log" role="log" aria-live="polite">
+                            <p class="small text-body-secondary mb-0">Reorder the API example to log events.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-top bg-glass">
+        <div class="container py-4 d-flex flex-wrap justify-content-between gap-2">
+            <span class="text-body-secondary">Frost UI Sortable</span>
+            <a href="https://github.com/frost-js/ui-sortable">View the repository</a>
+        </div>
+    </footer>
+
+    <script>
+        $('[data-ui-toggle="sortable"]').sortable();
+
+        $.addEvent(
+            '#methods-list',
+            'sort.ui.sortable sorting.ui.sortable sorted.ui.sortable update.ui.sortable',
+            (event) => {
+                const entry = $.create('div', {
+                    class: 'small font-monospace py-2 border-bottom',
+                });
+                const item = $.getText(event.item).trim();
+
+                $.setText(
+                    entry,
+                    `${event.type}.ui.sortable — ${item}: ${event.oldIndex} → ${event.newIndex}`,
+                );
+                $.append('#event-log', entry);
+                $.setScrollY('#event-log', $.height('#event-log', { boxSize: $.SCROLL_BOX }));
+            },
+        );
+
+        $('[data-demo-method]').addEvent('click', (event) => {
+            const method = $.getDataset(event.currentTarget, 'demoMethod');
+            const current = $.getData('#methods-list', 'sortable');
+
+            switch (method) {
+                case 'init':
+                    UI.Sortable.init($.findOne('#methods-list'));
+                    $.setText('#method-output', current ? 'Already initialized.' : 'Initialized.');
+                    break;
+                case 'dispose':
+                    if (current) {
+                        current.dispose();
+                        $.setText('#method-output', 'Disposed. Drag events are detached.');
+                    } else {
+                        $.setText('#method-output', 'Already disposed.');
+                    }
+                    break;
+                case 'enable':
+                    UI.Sortable.init($.findOne('#methods-list')).enable();
+                    $.setText('#method-output', 'Enabled.');
+                    break;
+                case 'disable':
+                    UI.Sortable.init($.findOne('#methods-list')).disable();
+                    $.setText('#method-output', 'Disabled.');
+                    break;
+            }
+        });
+
+        $.addEvent('#clear-events', 'click', (_) => {
+            $.empty('#event-log');
+        });
+    </script>
+</body>
+
+</html>

@@ -20,6 +20,7 @@ const window = $.getWindow();
  * @property {boolean} [scroll=true] Whether to scroll the window while sorting near an edge.
  * @property {number} [scrollSensitivity=20] The distance from a window edge that starts scrolling, in pixels.
  * @property {number} [scrollSpeed=5] The scroll distance applied per animation frame, in pixels.
+ * @property {number} [swapThreshold=0.25] The fraction of an item crossed before swapping, from `0` to `1`.
  */
 
 /**
@@ -46,6 +47,23 @@ const cursorStates = new WeakMap();
  * @augments {BaseComponent<SortableOptions>}
  */
 export default class Sortable extends BaseComponent {
+    /** @type {SortableOptions} */
+    static defaults = {
+        axis: null,
+        cancel: 'input, textarea, button, select, option',
+        connectWith: null,
+        cursor: 'auto',
+        disabled: false,
+        dropOnEmpty: true,
+        handle: null,
+        helperClass: 'bg-body-tertiary',
+        items: ':scope > li',
+        scroll: true,
+        scrollSensitivity: 20,
+        scrollSpeed: 5,
+        swapThreshold: 0.25,
+    };
+
     #currentIndex;
     #currentSortable;
     #cursorElements;
@@ -156,7 +174,17 @@ export default class Sortable extends BaseComponent {
             return;
         }
 
+        const scrollElement = document.scrollingElement;
+        const scrollBehavior = scrollElement.style.getPropertyValue('scroll-behavior');
+        const scrollBehaviorPriority = scrollElement.style.getPropertyPriority('scroll-behavior');
+
+        scrollElement.style.setProperty('scroll-behavior', 'auto', 'important');
         $.setScroll(document, offsetX, offsetY);
+        scrollElement.style.setProperty(
+            'scroll-behavior',
+            scrollBehavior,
+            scrollBehaviorPriority,
+        );
 
         this.#pos.x += offsetX - originalX;
         this.#pos.y += offsetY - originalY;
@@ -199,7 +227,14 @@ export default class Sortable extends BaseComponent {
                 return;
             }
 
+            const previousPos = this.#pos;
             this.#pos = getPosition(e);
+            const deltaX = previousPos ?
+                this.#pos.x - previousPos.x :
+                0;
+            const deltaY = previousPos ?
+                this.#pos.y - previousPos.y :
+                0;
 
             if (!this.#dragging) {
                 this.#dragging = true;
@@ -225,6 +260,10 @@ export default class Sortable extends BaseComponent {
                         ...eventData,
                     },
                 });
+
+                if (!this.node) {
+                    return;
+                }
 
                 if (this.options.helperClass) {
                     const helperClasses = this.options.helperClass
@@ -261,7 +300,8 @@ export default class Sortable extends BaseComponent {
             }
 
             const nearestInstance = this.constructor.init(nearestSortable);
-            const nearestItems = nearestInstance.items();
+            const nearestItems = nearestInstance.items()
+                .filter((node) => !$.isSame(node, this.#target));
             const nearestItem = $.nearestTo(
                 nearestItems,
                 this.#pos.x,
@@ -270,7 +310,13 @@ export default class Sortable extends BaseComponent {
             );
 
             if (nearestItem) {
-                this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y);
+                this.#updateTarget(
+                    nearestItem,
+                    this.#pos.x,
+                    this.#pos.y,
+                    deltaX,
+                    deltaY,
+                );
             } else if (!$.isSame(nearestSortable, this.#currentSortable)) {
                 $.append(nearestSortable, this.#target);
             } else {
@@ -552,22 +598,44 @@ export default class Sortable extends BaseComponent {
      * @param {HTMLElement} nearestItem The nearest item.
      * @param {number} x The mouse X position.
      * @param {number} y The mouse Y position.
+     * @param {number} deltaX The horizontal pointer movement.
+     * @param {number} deltaY The vertical pointer movement.
      */
-    #updateTarget(nearestItem, x, y) {
+    #updateTarget(nearestItem, x, y, deltaX, deltaY) {
         const nearestCenter = $.center(nearestItem, { offset: true });
+        const nearestRect = $.rect(nearestItem, { offset: true });
         const targetCenter = $.center(this.#target, { offset: true });
+        const threshold = Math.min(1, Math.max(0, this.options.swapThreshold));
+        let thresholdX = 0.5;
+        let thresholdY = 0.5;
+
+        if (deltaX) {
+            thresholdX = deltaX > 0 ?
+                threshold :
+                1 - threshold;
+        }
+
+        if (deltaY) {
+            thresholdY = deltaY > 0 ?
+                threshold :
+                1 - threshold;
+        }
 
         let method;
         if (this.options.axis === 'y' || nearestCenter.x === targetCenter.x) {
-            method = y < nearestCenter.y ?
+            const swapY = nearestRect.top + nearestRect.height * thresholdY;
+            method = y < swapY ?
                 'before' :
                 'after';
         } else if (this.options.axis === 'x' || nearestCenter.y === targetCenter.y) {
-            method = x < nearestCenter.x ?
+            const swapX = nearestRect.left + nearestRect.width * thresholdX;
+            method = x < swapX ?
                 'before' :
                 'after';
         } else {
-            method = x < nearestCenter.x && y < nearestCenter.y ?
+            const swapX = nearestRect.left + nearestRect.width * thresholdX;
+            const swapY = nearestRect.top + nearestRect.height * thresholdY;
+            method = x < swapX && y < swapY ?
                 'before' :
                 'after';
         }

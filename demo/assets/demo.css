@@ -1,0 +1,20 @@
+.demo-sortable {
+    min-height: 3.25rem;
+}
+
+.demo-sortable > .list-group-item {
+    touch-action: none;
+    user-select: none;
+}
+
+.demo-sortable-horizontal {
+    overflow-x: auto;
+}
+
+.demo-sortable-horizontal > .list-group-item {
+    min-width: 9rem;
+}
+
+.demo-event-log {
+    height: 18rem;
+}
