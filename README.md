@@ -258,7 +258,7 @@ const items = sortable.items();
 
 ### `disable()`
 
-Stop the instance from starting sorts or receiving connected items. Existing cursor styles remain until disposal.
+Stop the instance from starting sorts or receiving connected items.
 
 ### `enable()`
 
@@ -266,7 +266,7 @@ Allow the instance to start and receive sorts.
 
 ### `dispose()`
 
-Detach Sortable events, cancel active auto-scrolling, restore helper and cursor styles owned by the instance, remove stored component data, and set `node` and `options` to `null`.
+Detach Sortable events, cancel active auto-scrolling, clear active drag state, remove stored component data, and set `node` and `options` to `null`.
 
 ## fQuery plugin
 

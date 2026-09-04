@@ -123,32 +123,17 @@ test.describe('Sortable', () => {
     });
 
     test.describe('#dispose', () => {
-        test('removes the Sortable and restores cursor styles', async ({ page }) => {
+        test('removes the Sortable', async ({ page }) => {
             expect(await page.evaluate((_) => {
                 const list = $.findOne('#list');
-                const item = $.findOne('#one');
-                item.style.setProperty('cursor', 'crosshair', 'important');
-                const sortable = UI.Sortable.init(list, { cursor: 'grab' });
-                const activeCursor = item.style.cursor;
+                const sortable = UI.Sortable.init(list);
 
                 sortable.dispose();
 
-                return {
-                    activeCursor,
-                    dataRemoved: !$.hasData(list, 'sortable'),
-                    node: sortable.node,
-                    options: sortable.options,
-                    priority: item.style.getPropertyPriority('cursor'),
-                    restoredCursor: item.style.cursor,
-                };
-            })).toEqual({
-                activeCursor: 'grab',
-                dataRemoved: true,
-                node: null,
-                options: null,
-                priority: 'important',
-                restoredCursor: 'crosshair',
-            });
+                return !$.hasData(list, 'sortable') &&
+                    sortable.node === null &&
+                    sortable.options === null;
+            })).toBe(true);
         });
 
         test('can be called multiple times', async ({ page }) => {
@@ -351,6 +336,20 @@ test.describe('Sortable', () => {
         });
     });
 
+    test.describe('cursor option', () => {
+        test('styles the Sortable items', async ({ page }) => {
+            await page.evaluate((_) => {
+                UI.Sortable.init($.findOne('#list'), { cursor: 'grab' });
+            });
+
+            const items = page.locator('#list > li');
+            await expect(items).toHaveCount(3);
+            for (let index = 0; index < 3; index++) {
+                await expect(items.nth(index)).toHaveCSS('cursor', 'grab');
+            }
+        });
+    });
+
     test.describe('handle option', () => {
         test('sorts only from the configured handle', async ({ page }) => {
             await page.evaluate((_) => {
@@ -383,11 +382,11 @@ test.describe('Sortable', () => {
     });
 
     test.describe('helperClass option', () => {
-        test('preserves existing helper classes', async ({ page }) => {
+        test('adds helper classes while sorting', async ({ page }) => {
             await page.evaluate((_) => {
                 $.addClass('#one', 'existing');
                 UI.Sortable.init($.findOne('#list'), {
-                    helperClass: 'existing active extra',
+                    helperClass: 'active extra',
                 });
             });
 

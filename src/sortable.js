@@ -33,16 +33,6 @@ const window = $.getWindow();
  */
 
 /**
- * @typedef {object} CursorState
- * @property {Map<object, string>} owners The Sortable cursor owners and their values.
- * @property {string} priority The original inline cursor priority.
- * @property {string} value The original inline cursor value.
- */
-
-/** @type {WeakMap<HTMLElement, CursorState>} */
-const cursorStates = new WeakMap();
-
-/**
  * Controls a sortable collection of elements.
  * @augments {BaseComponent<SortableOptions>}
  */
@@ -66,10 +56,8 @@ export default class Sortable extends BaseComponent {
 
     #currentIndex;
     #currentSortable;
-    #cursorElements;
     #dragging;
     #enabled;
-    #helperClassesAdded;
     #pos;
     #scrollFrame;
     #selector;
@@ -89,10 +77,8 @@ export default class Sortable extends BaseComponent {
             this.#selector += ` ${this.options.handle}`;
         }
 
-        this.#cursorElements = new Set();
         this.#dragging = false;
         this.#enabled = !this.options.disabled;
-        this.#helperClassesAdded = [];
 
         this.#refreshCursors();
         this.#events();
@@ -112,11 +98,13 @@ export default class Sortable extends BaseComponent {
         }
 
         $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
-        $.removeEvent(this.node, 'send.ui.sortable receive.ui.sortable');
+        $.removeEvent(this.node, 'receive.ui.sortable');
+
+        if (this.#target && this.options.helperClass) {
+            $.removeClass(this.#target, this.options.helperClass);
+        }
 
         this.#resetDrag();
-        this.#restoreCursors();
-        this.#enabled = false;
 
         super.dispose();
     }
@@ -266,14 +254,7 @@ export default class Sortable extends BaseComponent {
                 }
 
                 if (this.options.helperClass) {
-                    const helperClasses = this.options.helperClass
-                        .split(/\s+/)
-                        .filter(Boolean);
-
-                    this.#helperClassesAdded = helperClasses
-                        .filter((className) => !this.#target.classList.contains(className));
-
-                    $.addClass(this.#target, this.#helperClassesAdded);
+                    $.addClass(this.#target, this.options.helperClass);
                 }
             }
 
@@ -421,7 +402,9 @@ export default class Sortable extends BaseComponent {
                 return;
             }
 
-            this.#restoreHelperClasses();
+            if (this.options.helperClass) {
+                $.removeClass(this.#target, this.options.helperClass);
+            }
 
             if (!$.isSame(source, destination)) {
                 $.triggerEvent(source, 'update.ui.sortable', {
@@ -465,78 +448,24 @@ export default class Sortable extends BaseComponent {
             dragEvent,
         );
 
-        $.addEvent(this.node, 'send.ui.sortable receive.ui.sortable', (_) => {
+        $.addEvent(this.node, 'receive.ui.sortable', (_) => {
             this.#refreshCursors();
         });
     }
 
     /**
-     * Refreshes Sortable item cursors and restores removed items.
+     * Refreshes Sortable item cursors.
      */
     #refreshCursors() {
-        const elements = new Set($.find(this.#selector, this.node));
+        const elements = $.find(this.#selector, this.node);
 
-        for (const element of this.#cursorElements) {
-            if (elements.has(element)) {
-                continue;
-            }
-
-            this.#releaseCursor(element);
-            this.#cursorElements.delete(element);
-        }
-
-        for (const element of elements) {
-            let state = cursorStates.get(element);
-
-            if (!state) {
-                state = {
-                    owners: new Map(),
-                    priority: element.style.getPropertyPriority('cursor'),
-                    value: element.style.getPropertyValue('cursor'),
-                };
-                cursorStates.set(element, state);
-            }
-
-            state.owners.set(this, this.options.cursor);
-            this.#cursorElements.add(element);
-            element.style.setProperty('cursor', this.options.cursor);
-        }
-    }
-
-    /**
-     * Releases this Sortable's cursor ownership for an element.
-     * @param {HTMLElement} element The cursor element.
-     */
-    #releaseCursor(element) {
-        const state = cursorStates.get(element);
-
-        if (!state) {
-            return;
-        }
-
-        state.owners.delete(this);
-
-        if (state.owners.size) {
-            const values = Array.from(state.owners.values());
-            element.style.setProperty('cursor', values.at(-1));
-            return;
-        }
-
-        if (state.value) {
-            element.style.setProperty('cursor', state.value, state.priority);
-        } else {
-            element.style.removeProperty('cursor');
-        }
-
-        cursorStates.delete(element);
+        $.setStyle(elements, { cursor: this.options.cursor });
     }
 
     /**
      * Resets the active drag state.
      */
     #resetDrag() {
-        this.#restoreHelperClasses();
-
         if (this.#scrollFrame !== null && this.#scrollFrame !== undefined) {
             window.cancelAnimationFrame(this.#scrollFrame);
         }
@@ -552,28 +481,6 @@ export default class Sortable extends BaseComponent {
         this.#scrollFrame = null;
         this.#startIndex = null;
         this.#target = null;
-    }
-
-    /**
-     * Restores cursor styles owned by this Sortable.
-     */
-    #restoreCursors() {
-        for (const element of this.#cursorElements) {
-            this.#releaseCursor(element);
-        }
-
-        this.#cursorElements.clear();
-    }
-
-    /**
-     * Restores helper classes added for the active drag.
-     */
-    #restoreHelperClasses() {
-        if (this.#target && this.#helperClassesAdded.length) {
-            $.removeClass(this.#target, this.#helperClassesAdded);
-        }
-
-        this.#helperClassesAdded = [];
     }
 
     /**
