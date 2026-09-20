@@ -123,8 +123,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		constructor(node, options) {
 			super(node, options);
-			this.#selector = this.options.items;
-			if (this.options.handle) this.#selector += ` ${this.options.handle}`;
+			this.#selector = this.options.handle ? `:is(${this.options.items}) :is(${this.options.handle})` : this.options.items;
 			this.#dragging = false;
 			this.#enabled = !this.options.disabled;
 			setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
