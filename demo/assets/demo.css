@@ -2,6 +2,10 @@
     min-height: 3.25rem;
 }
 
+.card > .demo-connected:not(:has(> .list-group-item)) {
+    border: var(--ui-list-group-border-width) var(--ui-border-style) var(--ui-list-group-border-color);
+}
+
 .demo-sortable > .list-group-item {
     touch-action: none;
     user-select: none;
