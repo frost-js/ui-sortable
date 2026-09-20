@@ -294,6 +294,8 @@ var Sortable = class extends BaseComponent {
 		const newIndex = nearestInstance.items().indexOf(this.#target);
 		if (nearestSortable !== this.#currentSortable) {
 			const previousSortable = this.#currentSortable;
+			const { handle } = this.constructor.init(previousSortable).options;
+			resetCursor(handle ? $.find(handle, this.#target) : [this.#target]);
 			/** @type {SortableEventData} */
 			const eventData = {
 				item: this.#target,

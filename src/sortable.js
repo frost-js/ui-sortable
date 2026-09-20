@@ -414,6 +414,13 @@ export default class Sortable extends BaseComponent {
 
         if (nearestSortable !== this.#currentSortable) {
             const previousSortable = this.#currentSortable;
+            const previousInstance = this.constructor.init(previousSortable);
+            const { handle } = previousInstance.options;
+
+            resetCursor(handle ?
+                $.find(handle, this.#target) :
+                [this.#target]);
+
             /** @type {SortableEventData} */
             const eventData = {
                 item: this.#target,

@@ -326,6 +326,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const newIndex = nearestInstance.items().indexOf(this.#target);
 			if (nearestSortable !== this.#currentSortable) {
 				const previousSortable = this.#currentSortable;
+				const { handle } = this.constructor.init(previousSortable).options;
+				resetCursor(handle ? _fr0st_query.default.find(handle, this.#target) : [this.#target]);
 				/** @type {SortableEventData} */
 				const eventData = {
 					item: this.#target,
