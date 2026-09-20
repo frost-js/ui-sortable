@@ -59,9 +59,9 @@
         "@fr0st/query": "^5.0.0",
         "@fr0st/ui": "^4.0.0",
         "@playwright/test": "^1.62.1",
-        "eslint": "^10.9.1",
+        "eslint": "^10.10.0",
         "monocart-reporter": "^2.12.6",
-        "vite": "^8.2.2"
+        "vite": "^8.3.0"
     },
     "peerDependencies": {
         "@fr0st/query": "^5.0.0",
