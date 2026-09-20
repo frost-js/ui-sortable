@@ -117,36 +117,41 @@ test.describe('Sortable connected containers', () => {
         ]);
     });
 
-    for (const { name, empty, options, accepted } of [
+    for (const { name, empty, options, expectedSource, expectedDestination } of [
         {
             name: 'empty destination',
             empty: true,
             options: {},
-            accepted: true,
+            expectedSource: ['two'],
+            expectedDestination: ['One'],
         },
         {
             name: 'empty drops disabled',
             empty: true,
             options: { dropOnEmpty: false },
-            accepted: false,
+            expectedSource: ['one', 'two'],
+            expectedDestination: [],
         },
         {
             name: 'populated destination with empty drops disabled',
             empty: false,
             options: { dropOnEmpty: false },
-            accepted: true,
+            expectedSource: ['two'],
+            expectedDestination: ['Three', 'One'],
         },
         {
             name: 'disabled empty destination',
             empty: true,
             options: { disabled: true },
-            accepted: false,
+            expectedSource: ['one', 'two'],
+            expectedDestination: [],
         },
         {
             name: 'disabled populated destination',
             empty: false,
             options: { disabled: true },
-            accepted: false,
+            expectedSource: ['one', 'two'],
+            expectedDestination: ['Three'],
         },
     ]) {
         test(`respects destination options (${name})`, async ({ page }) => {
@@ -167,12 +172,8 @@ test.describe('Sortable connected containers', () => {
             // A rejected transfer may still reorder items within the source.
             expect(await page.locator('#source > li').evaluateAll((nodes) =>
                 nodes.map((node) => node.id).sort(),
-            )).toEqual(accepted ? ['two'] : ['one', 'two']);
-            const expected = empty ? [] : ['Three'];
-            if (accepted) {
-                expected.push('One');
-            }
-            await expect(page.locator('#destination > li')).toHaveText(expected);
+            )).toEqual(expectedSource);
+            await expect(page.locator('#destination > li')).toHaveText(expectedDestination);
         });
     }
 

@@ -174,16 +174,19 @@ test.describe('Sortable', () => {
 
     test.describe('#items', () => {
         for (const { name, items } of [
-            { name: 'class', items: () => $.getData('#list', 'sortable').items() },
-            { name: 'QuerySet', items: () => $('#list').sortable('items') },
+            {
+                name: 'class',
+                items: () => $.getData('#list', 'sortable').items().map((node) => node.id),
+            },
+            {
+                name: 'QuerySet',
+                items: () => $('#list').sortable('items').map((node) => node.id),
+            },
         ]) {
             test(`gets the Sortable items (${name})`, async ({ page }) => {
                 await page.evaluate(() => UI.Sortable.init(document.querySelector('#list')));
-                const result = await page.evaluateHandle(items);
 
-                expect(await result.evaluate((nodes) => nodes.map((node) => node.id))).toEqual([
-                    'one', 'two', 'three',
-                ]);
+                expect(await page.evaluate(items)).toEqual(['one', 'two', 'three']);
             });
         }
 
@@ -459,48 +462,67 @@ test.describe('Sortable', () => {
     });
 
     test.describe('swapThreshold option', () => {
-        for (const { name, threshold, before, after } of [
-            { name: 'default', threshold: undefined, before: 0.2, after: 0.3 },
-            { name: 'custom', threshold: 0.75, before: 0.5, after: 0.8 },
+        for (const { name, options, order, delta, before, after } of [
+            {
+                name: 'default threshold moving forward',
+                options: {},
+                order: ['one', 'two', 'three'],
+                delta: 1,
+                before: { position: 0.2, expected: ['One', 'Two', 'Three'] },
+                after: { position: 0.3, expected: ['Two', 'One', 'Three'] },
+            },
+            {
+                name: 'default threshold moving backward',
+                options: {},
+                order: ['two', 'one', 'three'],
+                delta: -1,
+                before: { position: 0.8, expected: ['Two', 'One', 'Three'] },
+                after: { position: 0.7, expected: ['One', 'Two', 'Three'] },
+            },
+            {
+                name: 'custom threshold moving forward',
+                options: { swapThreshold: 0.75 },
+                order: ['one', 'two', 'three'],
+                delta: 1,
+                before: { position: 0.5, expected: ['One', 'Two', 'Three'] },
+                after: { position: 0.8, expected: ['Two', 'One', 'Three'] },
+            },
+            {
+                name: 'custom threshold moving backward',
+                options: { swapThreshold: 0.75 },
+                order: ['two', 'one', 'three'],
+                delta: -1,
+                before: { position: 0.5, expected: ['Two', 'One', 'Three'] },
+                after: { position: 0.2, expected: ['One', 'Two', 'Three'] },
+            },
         ]) {
-            for (const reverse of [false, true]) {
-                test(`uses the ${name} threshold moving ${reverse ? 'backward' : 'forward'}`, async ({ page }) => {
-                    await page.evaluate(({ threshold, reverse }) => {
-                        if (reverse) {
-                            document.querySelector('#one').before(document.querySelector('#two'));
-                        }
+            test(`uses the ${name}`, async ({ page }) => {
+                await page.evaluate(({ options, order }) => {
+                    const list = document.querySelector('#list');
+                    list.replaceChildren(...order.map((id) => document.getElementById(id)));
+                    UI.Sortable.init(list, options);
+                }, { options, order });
 
-                        UI.Sortable.init(
-                            document.querySelector('#list'),
-                            threshold === undefined ? {} : { swapThreshold: threshold },
-                        );
-                    }, { threshold, reverse });
+                const oneBox = await page.locator('#one').boundingBox();
+                const twoBox = await page.locator('#two').boundingBox();
+                if (!oneBox || !twoBox) {
+                    throw new Error('Could not measure threshold drag elements.');
+                }
 
-                    const oneBox = await page.locator('#one').boundingBox();
-                    const twoBox = await page.locator('#two').boundingBox();
-                    if (!oneBox || !twoBox) {
-                        throw new Error('Could not measure threshold drag elements.');
-                    }
+                const x = oneBox.x + oneBox.width / 2;
+                const y = oneBox.y + oneBox.height / 2;
+                await page.mouse.move(x, y);
+                await page.mouse.down();
+                await page.mouse.move(x, y + delta);
+                await page.mouse.move(x, twoBox.y + twoBox.height * before.position);
 
-                    const x = oneBox.x + oneBox.width / 2;
-                    const y = oneBox.y + oneBox.height / 2;
-                    await page.mouse.move(x, y);
-                    await page.mouse.down();
-                    await page.mouse.move(x, y + (reverse ? -1 : 1));
-                    await page.mouse.move(x, twoBox.y + twoBox.height * (reverse ? 1 - before : before));
+                await expect(page.locator('#list > li')).toHaveText(before.expected);
 
-                    await expect(page.locator('#list > li')).toHaveText(
-                        reverse ? ['Two', 'One', 'Three'] : ['One', 'Two', 'Three'],
-                    );
+                await page.mouse.move(x, twoBox.y + twoBox.height * after.position);
 
-                    await page.mouse.move(x, twoBox.y + twoBox.height * (reverse ? 1 - after : after));
-
-                    await expect(page.locator('#list > li')).toHaveText(
-                        reverse ? ['One', 'Two', 'Three'] : ['Two', 'One', 'Three'],
-                    );
-                    await page.mouse.up();
-                });
-            }
+                await expect(page.locator('#list > li')).toHaveText(after.expected);
+                await page.mouse.up();
+            });
         }
     });
 
