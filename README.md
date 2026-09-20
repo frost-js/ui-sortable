@@ -27,10 +27,10 @@ Drag-and-drop sorting for Frost UI with handles, connected containers, axis cont
 
 ### Browser projects / bundlers
 
-Install Sortable with its Frost UI and fQuery peers:
+Install Sortable with its Frost UI v4 and fQuery v5 peers:
 
 ```bash
-npm i @fr0st/ui-sortable @fr0st/ui @fr0st/query
+npm i @fr0st/ui-sortable@3 @fr0st/ui@4 @fr0st/query@5
 ```
 
 The package root resolves to the compiled ESM bundle. Import the Frost UI stylesheet and the default component export:
@@ -48,7 +48,7 @@ const sortable = Sortable.init(
 );
 ```
 
-Frost UI 4 (`@fr0st/ui@^4.0.0`) and fQuery 5 (`@fr0st/query@^5.0.0`) are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
+`@fr0st/ui` and `@fr0st/query` are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
 
 Sortable requires a browser DOM or a compatible DOM environment configured through fQuery. Server-rendered applications should load the component on the client.
 
@@ -59,19 +59,19 @@ The ESM bundle imports `@fr0st/ui` and `@fr0st/query`. Frost UI and fQuery also 
 ```html
 <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
 
 <script type="importmap">
 {
     "imports": {
-        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@latest/dist/frost-core.esm.min.js",
-        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@latest/dist/fquery.esm.min.js",
-        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.esm.min.js"
+        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@4/dist/frost-core.esm.min.js",
+        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@5/dist/fquery.esm.min.js",
+        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.esm.min.js"
     }
 }
 </script>
 <script type="module">
-    import Sortable from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-sortable@latest/dist/frost-ui-sortable.esm.min.js';
+    import Sortable from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-sortable@3/dist/frost-ui-sortable.esm.min.js';
 
     Sortable.init(document.querySelector('#tasks'));
 </script>
@@ -84,10 +84,10 @@ Load Frost UI's all-in-one bundle before Sortable. The UI bundle supplies both t
 ```html
 <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui-bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-sortable@latest/dist/frost-ui-sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-sortable@3/dist/frost-ui-sortable.min.js"></script>
 <script>
     const sortable = UI.Sortable.init(
         document.querySelector('#tasks'),
@@ -96,6 +96,8 @@ Load Frost UI's all-in-one bundle before Sortable. The UI bundle supplies both t
 ```
 
 The UMD bundle adds `Sortable` to the existing `globalThis.UI` object. It expects `globalThis.UI` and `globalThis.fQuery` to exist before it loads. If the non-bundled Frost UI build is used instead, load fQuery, Frost UI, and Sortable in that order.
+
+Do not load the separate fQuery script when using `frost-ui-bundle.js` or `frost-ui-bundle.min.js`.
 
 ## Usage
 
@@ -124,6 +126,8 @@ Calling `Sortable.init()` again for the same container returns its existing inst
 
 Use `handle` when only part of an item should begin a drag. Inputs, text areas, buttons, selects, and options are excluded by the default `cancel` selector, including nested content inside those controls.
 
+Cancel checks include ancestors of the handle up to, but not including, the sortable container. A handle inside a button is therefore excluded too. Use `cancel: null` to disable these exclusions, or supply a custom selector.
+
 ```html
 <ul class="list-group" id="tasks">
     <li class="list-group-item d-flex align-items-center gap-3">
@@ -140,6 +144,8 @@ Sortable.init(document.querySelector('#tasks'), {
     handle: '.drag-handle',
 });
 ```
+
+Both `items` and `handle` accept comma-separated selectors. For example, `items: ':scope > .task, :scope > .note'` with `handle: '.drag-handle, .grip'` allows either handle inside either item type.
 
 ### Connected containers
 
@@ -169,6 +175,8 @@ document.querySelectorAll('.connected').forEach((node) => {
 ```
 
 The receiving instance controls `dropOnEmpty` and `disabled`. Moving between containers triggers `send` on the previous container and `receive` on the new container.
+
+Containers can use different `cursor` and `handle` settings. On transfer, Sortable restores the previous container's cursor targets before `send`, then applies the receiving container's cursor to its items or handles during `receive`.
 
 ## Options
 
@@ -213,6 +221,8 @@ const sortable = Sortable.init(node, {
     swapThreshold: 0.25,
 });
 ```
+
+Auto-scrolling updates item placement and sorting events even while the pointer remains stationary near an edge. Scroll steps are instant regardless of the page's CSS `scroll-behavior`; Sortable does not modify that style.
 
 ## Data attributes
 
@@ -266,7 +276,7 @@ Allow the instance to start and receive sorts.
 
 ### `dispose()`
 
-Detach Sortable events, restore original cursor styles, cancel active auto-scrolling, clear active drag state, remove stored component data, and set `node` and `options` to `null`.
+Detach Sortable events, restore original inline cursor declarations (including `!important` priority), release cursor style locks, cancel active auto-scrolling, clear active drag state, remove stored component data, and set `node` and `options` to `null`. Calling `dispose()` again has no effect.
 
 ## fQuery plugin
 
@@ -309,7 +319,7 @@ $.addEvent(
 | `sorting.ui.sortable` | Current container | The item changes index within the same container. |
 | `send.ui.sortable` | Previous container | The item moves out to a connected container. |
 | `receive.ui.sortable` | New container | The item enters from a connected container. |
-| `sorted.ui.sortable` | Final container | The pointer or touch is released after an active sort. |
+| `sorted.ui.sortable` | Final container | The pointer or touch is released, or the touch sequence is cancelled, after an active sort. |
 | `update.ui.sortable` | Changed container(s) | The final order changes. Cross-container moves update both source and destination. |
 
 Every event exposes the same normalized fields directly and through `event.detail`:
@@ -317,8 +327,8 @@ Every event exposes the same normalized fields directly and through `event.detai
 | Field | Type | Description |
 | --- | --- | --- |
 | `item` | `HTMLElement` | Item being sorted. |
-| `from` | `HTMLElement` | Previous container for transfer events, otherwise the original container. |
-| `to` | `HTMLElement` | New container for transfer events, otherwise the final container. |
+| `from` | `HTMLElement` | Source for `sort`, current container for `sorting`, previous container for `send`/`receive`, and original source for `sorted`/`update`. |
+| `to` | `HTMLElement` | Source for `sort`, current container for `sorting`, new container for `send`/`receive`, and final destination for `sorted`/`update`. |
 | `oldIndex` | `number` | Previous index for movement events, otherwise the original index. |
 | `newIndex` | `number` | New index for movement events, otherwise the final index. |
 | `detail.target` | `HTMLElement` | Alias of the active `item` retained for Frost UI event compatibility. |
@@ -342,9 +352,11 @@ For touch interfaces, applying `touch-action: none` to sortable items or handles
 
 ## Browser support
 
-Source and bundles target the Baseline Widely Available feature set. The automated browser suite runs against current Chromium, Firefox, and WebKit releases.
+Bundles are built with Vite's `baseline-widely-available` target. The automated browser suite is configured for the Chromium, Firefox, and WebKit versions supplied by the installed Playwright release.
 
 ## Development
+
+Use Node.js matching `^20.19.0 || ^22.13.0 || >=24`. Install dependencies with `npm ci`, then install Playwright browsers with `npx playwright install --with-deps`.
 
 ```bash
 npm test
@@ -352,7 +364,11 @@ npm run lint
 npm run build
 ```
 
-`npm test` builds the bundles and runs the Playwright suite in Chromium, Firefox, and WebKit.
+`npm test` rebuilds JavaScript, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
+
+After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/` and `test-results/coverage/`.
+
+`npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 
 ## License
 
