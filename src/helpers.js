@@ -1,3 +1,5 @@
+/** @import { SortableEventData } from './sortable.js'; */
+
 import $ from '@fr0st/query';
 
 const cursorLocks = new WeakMap();
@@ -32,4 +34,20 @@ export function setCursor(nodes, cursor) {
             cursorLocks.set(node, $.setStyleLock(node, 'cursor', cursor));
         }
     }
+};
+
+/**
+ * Triggers a Sortable event with its data and detail payloads.
+ * @param {HTMLElement} node The event target.
+ * @param {string} name The event name without its namespace.
+ * @param {SortableEventData} data The sorting event data.
+ */
+export function triggerSortableEvent(node, name, data) {
+    $.triggerEvent(node, `${name}.ui.sortable`, {
+        data,
+        detail: {
+            target: data.item,
+            ...data,
+        },
+    });
 };

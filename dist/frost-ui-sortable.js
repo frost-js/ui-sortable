@@ -34,6 +34,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 _fr0st_query = __toESM(_fr0st_query, 1);
 
 //#region src/helpers.js
+/** @import { SortableEventData } from './sortable.js'; */
 	var cursorLocks = /* @__PURE__ */ new WeakMap();
 	/**
 	* Resets the cursor style for a collection of elements.
@@ -55,6 +56,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function setCursor(nodes, cursor) {
 		for (const node of nodes) if (cursorLocks.has(node)) _fr0st_query.default.setStyle(node, { cursor });
 		else cursorLocks.set(node, _fr0st_query.default.setStyleLock(node, "cursor", cursor));
+	}
+	/**
+	* Triggers a Sortable event with its data and detail payloads.
+	* @param {HTMLElement} node The event target.
+	* @param {string} name The event name without its namespace.
+	* @param {SortableEventData} data The sorting event data.
+	*/
+	function triggerSortableEvent(node, name, data) {
+		_fr0st_query.default.triggerEvent(node, `${name}.ui.sortable`, {
+			data,
+			detail: {
+				target: data.item,
+				...data
+			}
+		});
 	}
 
 //#endregion
@@ -183,12 +199,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				offsetX = Math.min(maxX, originalX + this.options.scrollSpeed);
 			}
 			if (offsetX === originalX && offsetY === originalY) return;
-			const scrollElement = document.scrollingElement;
-			const scrollBehavior = scrollElement.style.getPropertyValue("scroll-behavior");
-			const scrollBehaviorPriority = scrollElement.style.getPropertyPriority("scroll-behavior");
-			scrollElement.style.setProperty("scroll-behavior", "auto", "important");
-			_fr0st_query.default.setScroll(document, offsetX, offsetY);
-			scrollElement.style.setProperty("scroll-behavior", scrollBehavior, scrollBehaviorPriority);
+			window.scrollTo({
+				left: offsetX,
+				top: offsetY,
+				behavior: "instant"
+			});
 			const deltaX = offsetX - originalX;
 			const deltaY = offsetY - originalY;
 			this.#pos.x += deltaX;
@@ -226,13 +241,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						oldIndex: this.#startIndex,
 						newIndex: this.#startIndex
 					};
-					_fr0st_query.default.triggerEvent(this.node, "sort.ui.sortable", {
-						data: eventData,
-						detail: {
-							target: this.#target,
-							...eventData
-						}
-					});
+					triggerSortableEvent(this.node, "sort", eventData);
 					if (!this.node) return;
 					if (this.options.helperClass) _fr0st_query.default.addClass(this.#target, this.options.helperClass);
 				}
@@ -256,37 +265,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					oldIndex: this.#startIndex,
 					newIndex: this.#currentIndex
 				};
-				_fr0st_query.default.triggerEvent(destination, "sorted.ui.sortable", {
-					data: eventData,
-					detail: {
-						target: this.#target,
-						...eventData
-					}
-				});
+				triggerSortableEvent(destination, "sorted", eventData);
 				if (!this.node) return;
 				if (this.options.helperClass) _fr0st_query.default.removeClass(this.#target, this.options.helperClass);
-				if (!_fr0st_query.default.isSame(source, destination)) {
-					_fr0st_query.default.triggerEvent(source, "update.ui.sortable", {
-						data: eventData,
-						detail: {
-							target: this.#target,
-							...eventData
-						}
-					});
-					if (this.node) _fr0st_query.default.triggerEvent(destination, "update.ui.sortable", {
-						data: eventData,
-						detail: {
-							target: this.#target,
-							...eventData
-						}
-					});
-				} else if (this.#currentIndex !== this.#startIndex) _fr0st_query.default.triggerEvent(destination, "update.ui.sortable", {
-					data: eventData,
-					detail: {
-						target: this.#target,
-						...eventData
-					}
-				});
+				if (source !== destination) {
+					triggerSortableEvent(source, "update", eventData);
+					if (this.node) triggerSortableEvent(destination, "update", eventData);
+				} else if (this.#currentIndex !== this.#startIndex) triggerSortableEvent(destination, "update", eventData);
 				if (this.node) this.#resetDrag();
 			};
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent);
@@ -326,20 +311,20 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#updatePlacement(deltaX, deltaY) {
 			let nearestSortable = this.node;
 			if (this.options.connectWith) {
-				const connected = _fr0st_query.default.find(this.options.connectWith).filter((node) => !_fr0st_query.default.isSame(node, this.node)).filter((node) => {
+				const connected = _fr0st_query.default.find(this.options.connectWith).filter((node) => node !== this.node).filter((node) => {
 					const sortable = this.constructor.init(node);
 					return sortable.#enabled && (sortable.options.dropOnEmpty || sortable.items().length);
 				});
 				if (connected.length) nearestSortable = _fr0st_query.default.nearestTo([this.node, ...connected], this.#pos.x, this.#pos.y, { offset: true });
 			}
 			const nearestInstance = this.constructor.init(nearestSortable);
-			const nearestItems = nearestInstance.items().filter((node) => !_fr0st_query.default.isSame(node, this.#target));
+			const nearestItems = nearestInstance.items().filter((node) => node !== this.#target);
 			const nearestItem = _fr0st_query.default.nearestTo(nearestItems, this.#pos.x, this.#pos.y, { offset: true });
 			if (nearestItem) this.#updateTarget(nearestItem, this.#pos.x, this.#pos.y, deltaX, deltaY);
-			else if (!_fr0st_query.default.isSame(nearestSortable, this.#currentSortable)) _fr0st_query.default.append(nearestSortable, this.#target);
+			else if (nearestSortable !== this.#currentSortable) _fr0st_query.default.append(nearestSortable, this.#target);
 			else return;
 			const newIndex = nearestInstance.items().indexOf(this.#target);
-			if (!_fr0st_query.default.isSame(nearestSortable, this.#currentSortable)) {
+			if (nearestSortable !== this.#currentSortable) {
 				const previousSortable = this.#currentSortable;
 				/** @type {SortableEventData} */
 				const eventData = {
@@ -349,21 +334,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					oldIndex: this.#currentIndex,
 					newIndex
 				};
-				_fr0st_query.default.triggerEvent(previousSortable, "send.ui.sortable", {
-					data: eventData,
-					detail: {
-						target: this.#target,
-						...eventData
-					}
-				});
+				triggerSortableEvent(previousSortable, "send", eventData);
 				if (!this.node) return;
-				_fr0st_query.default.triggerEvent(nearestSortable, "receive.ui.sortable", {
-					data: eventData,
-					detail: {
-						target: this.#target,
-						...eventData
-					}
-				});
+				triggerSortableEvent(nearestSortable, "receive", eventData);
 			} else if (this.#currentIndex !== newIndex) {
 				/** @type {SortableEventData} */
 				const eventData = {
@@ -373,13 +346,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					oldIndex: this.#currentIndex,
 					newIndex
 				};
-				_fr0st_query.default.triggerEvent(nearestSortable, "sorting.ui.sortable", {
-					data: eventData,
-					detail: {
-						target: this.#target,
-						...eventData
-					}
-				});
+				triggerSortableEvent(nearestSortable, "sorting", eventData);
 			}
 			if (!this.node) return;
 			this.#currentIndex = newIndex;

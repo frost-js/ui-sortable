@@ -1,6 +1,6 @@
 import $ from '@fr0st/query';
 import { BaseComponent, getPosition } from '@fr0st/ui';
-import { resetCursor, setCursor } from './helpers.js';
+import { resetCursor, setCursor, triggerSortableEvent } from './helpers.js';
 
 const document = $.getContext();
 const window = $.getWindow();
@@ -163,17 +163,11 @@ export default class Sortable extends BaseComponent {
             return;
         }
 
-        const scrollElement = document.scrollingElement;
-        const scrollBehavior = scrollElement.style.getPropertyValue('scroll-behavior');
-        const scrollBehaviorPriority = scrollElement.style.getPropertyPriority('scroll-behavior');
-
-        scrollElement.style.setProperty('scroll-behavior', 'auto', 'important');
-        $.setScroll(document, offsetX, offsetY);
-        scrollElement.style.setProperty(
-            'scroll-behavior',
-            scrollBehavior,
-            scrollBehaviorPriority,
-        );
+        window.scrollTo({
+            left: offsetX,
+            top: offsetY,
+            behavior: 'instant',
+        });
 
         const deltaX = offsetX - originalX;
         const deltaY = offsetY - originalY;
@@ -246,13 +240,7 @@ export default class Sortable extends BaseComponent {
                     newIndex: this.#startIndex,
                 };
 
-                $.triggerEvent(this.node, 'sort.ui.sortable', {
-                    data: eventData,
-                    detail: {
-                        target: this.#target,
-                        ...eventData,
-                    },
-                });
+                triggerSortableEvent(this.node, 'sort', eventData);
 
                 if (!this.node) {
                     return;
@@ -292,13 +280,7 @@ export default class Sortable extends BaseComponent {
                 newIndex: this.#currentIndex,
             };
 
-            $.triggerEvent(destination, 'sorted.ui.sortable', {
-                data: eventData,
-                detail: {
-                    target: this.#target,
-                    ...eventData,
-                },
-            });
+            triggerSortableEvent(destination, 'sorted', eventData);
 
             if (!this.node) {
                 return;
@@ -308,32 +290,14 @@ export default class Sortable extends BaseComponent {
                 $.removeClass(this.#target, this.options.helperClass);
             }
 
-            if (!$.isSame(source, destination)) {
-                $.triggerEvent(source, 'update.ui.sortable', {
-                    data: eventData,
-                    detail: {
-                        target: this.#target,
-                        ...eventData,
-                    },
-                });
+            if (source !== destination) {
+                triggerSortableEvent(source, 'update', eventData);
 
                 if (this.node) {
-                    $.triggerEvent(destination, 'update.ui.sortable', {
-                        data: eventData,
-                        detail: {
-                            target: this.#target,
-                            ...eventData,
-                        },
-                    });
+                    triggerSortableEvent(destination, 'update', eventData);
                 }
             } else if (this.#currentIndex !== this.#startIndex) {
-                $.triggerEvent(destination, 'update.ui.sortable', {
-                    data: eventData,
-                    detail: {
-                        target: this.#target,
-                        ...eventData,
-                    },
-                });
+                triggerSortableEvent(destination, 'update', eventData);
             }
 
             if (this.node) {
@@ -404,7 +368,7 @@ export default class Sortable extends BaseComponent {
 
         if (this.options.connectWith) {
             const connected = $.find(this.options.connectWith)
-                .filter((node) => !$.isSame(node, this.node))
+                .filter((node) => node !== this.node)
                 .filter((node) => {
                     const sortable = this.constructor.init(node);
 
@@ -424,7 +388,7 @@ export default class Sortable extends BaseComponent {
 
         const nearestInstance = this.constructor.init(nearestSortable);
         const nearestItems = nearestInstance.items()
-            .filter((node) => !$.isSame(node, this.#target));
+            .filter((node) => node !== this.#target);
         const nearestItem = $.nearestTo(
             nearestItems,
             this.#pos.x,
@@ -440,7 +404,7 @@ export default class Sortable extends BaseComponent {
                 deltaX,
                 deltaY,
             );
-        } else if (!$.isSame(nearestSortable, this.#currentSortable)) {
+        } else if (nearestSortable !== this.#currentSortable) {
             $.append(nearestSortable, this.#target);
         } else {
             return;
@@ -448,7 +412,7 @@ export default class Sortable extends BaseComponent {
 
         const newIndex = nearestInstance.items().indexOf(this.#target);
 
-        if (!$.isSame(nearestSortable, this.#currentSortable)) {
+        if (nearestSortable !== this.#currentSortable) {
             const previousSortable = this.#currentSortable;
             /** @type {SortableEventData} */
             const eventData = {
@@ -459,25 +423,13 @@ export default class Sortable extends BaseComponent {
                 newIndex,
             };
 
-            $.triggerEvent(previousSortable, 'send.ui.sortable', {
-                data: eventData,
-                detail: {
-                    target: this.#target,
-                    ...eventData,
-                },
-            });
+            triggerSortableEvent(previousSortable, 'send', eventData);
 
             if (!this.node) {
                 return;
             }
 
-            $.triggerEvent(nearestSortable, 'receive.ui.sortable', {
-                data: eventData,
-                detail: {
-                    target: this.#target,
-                    ...eventData,
-                },
-            });
+            triggerSortableEvent(nearestSortable, 'receive', eventData);
         } else if (this.#currentIndex !== newIndex) {
             /** @type {SortableEventData} */
             const eventData = {
@@ -488,13 +440,7 @@ export default class Sortable extends BaseComponent {
                 newIndex,
             };
 
-            $.triggerEvent(nearestSortable, 'sorting.ui.sortable', {
-                data: eventData,
-                detail: {
-                    target: this.#target,
-                    ...eventData,
-                },
-            });
+            triggerSortableEvent(nearestSortable, 'sorting', eventData);
         }
 
         if (!this.node) {
