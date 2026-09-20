@@ -1,85 +1,67 @@
 import { expect, test } from '#test';
-import { resetPage } from '../setup/browser.js';
 import { drag } from '../support/drag.js';
-
-test.beforeEach(async ({ page }) => {
-    await resetPage(page);
-});
 
 test.describe('Sortable', () => {
     test.beforeEach(async ({ page }) => {
         await page.evaluate((_) => {
-            $.setHTML(
-                document.body,
+            document.body.innerHTML =
                 '<ul class="list-group" id="list" style="width: 240px">' +
-                    '<li class="list-group-item" id="one">One</li>' +
-                    '<li class="list-group-item" id="two">Two</li>' +
-                    '<li class="list-group-item" id="three">Three</li>' +
-                '</ul>',
-            );
+                '<li class="list-group-item" id="one">One</li>' +
+                '<li class="list-group-item" id="two">Two</li>' +
+                '<li class="list-group-item" id="three">Three</li>' +
+                '</ul>';
         });
     });
 
     test.describe('#init', () => {
-        test('creates a Sortable', async ({ page }) => {
-            expect(await page.evaluate((_) =>
-                UI.Sortable.init($.findOne('#list')) instanceof UI.Sortable,
-            )).toBe(true);
-        });
+        for (const { name, init } of [
+            { name: 'class', init: () => UI.Sortable.init(document.querySelector('#list')) },
+            { name: 'QuerySet', init: () => $('#list').sortable() },
+        ]) {
+            test(`creates and registers a Sortable (${name})`, async ({ page }) => {
+                const instance = await page.evaluateHandle(init);
 
-        test('creates a Sortable (query)', async ({ page }) => {
-            expect(await page.evaluate((_) =>
-                $('#list').sortable() instanceof UI.Sortable,
-            )).toBe(true);
-        });
+                expect(await instance.evaluate((value) => value instanceof UI.Sortable)).toBe(true);
+                expect(await instance.evaluate((value) => $.getData('#list', 'sortable') === value)).toBe(true);
+            });
+        }
 
-        test('creates multiple Sortables (query)', async ({ page }) => {
+        test('creates multiple Sortables (QuerySet)', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                $.setHTML(
-                    document.body,
+                document.body.innerHTML =
                     '<ul class="sortable" id="one-list"><li>One</li></ul>' +
-                    '<ul class="sortable" id="two-list"><li>Two</li></ul>',
-                );
+                    '<ul class="sortable" id="two-list"><li>Two</li></ul>';
                 $('.sortable').sortable();
 
-                return ['#one-list', '#two-list'].every((selector) =>
-                    $.getData(selector, 'sortable') instanceof UI.Sortable,
-                );
-            })).toBe(true);
+                return ['#one-list', '#two-list'].map((selector) =>
+                    $.getData(selector, 'sortable') instanceof UI.Sortable);
+            })).toEqual([true, true]);
         });
 
-        test('returns the first Sortable (query)', async ({ page }) => {
+        test('returns the first Sortable (QuerySet)', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                $.setHTML(
-                    document.body,
+                document.body.innerHTML =
                     '<ul class="sortable" id="one-list"><li>One</li></ul>' +
-                    '<ul class="sortable" id="two-list"><li>Two</li></ul>',
-                );
-                const sortable = $('.sortable').sortable();
+                    '<ul class="sortable" id="two-list"><li>Two</li></ul>';
+                const instance = $('.sortable').sortable();
 
-                return sortable === $.getData('#one-list', 'sortable');
+                return instance === $.getData('#one-list', 'sortable');
             })).toBe(true);
         });
 
-        test('reuses an existing Sortable', async ({ page }) => {
+        test('reuses an existing Sortable without changing options', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                const list = $.findOne('#list');
+                const list = document.querySelector('#list');
                 const first = UI.Sortable.init(list, { cursor: 'grab' });
                 const second = UI.Sortable.init(list, { cursor: 'copy' });
 
-                return {
-                    cursor: second.options.cursor,
-                    same: first === second,
-                };
-            })).toEqual({
-                cursor: 'grab',
-                same: true,
-            });
+                return { cursor: second.options.cursor, same: first === second };
+            })).toEqual({ cursor: 'grab', same: true });
         });
 
         test('exposes frozen default options', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                const sortable = UI.Sortable.init($.findOne('#list'));
+                const sortable = UI.Sortable.init(document.querySelector('#list'));
 
                 return {
                     ...sortable.options,
@@ -105,166 +87,127 @@ test.describe('Sortable', () => {
 
         test('uses data options', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                $.setDataset('#list', {
-                    uiAxis: 'x',
-                    uiScrollSpeed: 12,
-                });
-                const sortable = UI.Sortable.init($.findOne('#list'));
+                const list = document.querySelector('#list');
+                list.dataset.uiAxis = 'x';
+                list.dataset.uiScrollSpeed = '12';
+                const sortable = UI.Sortable.init(list);
 
                 return {
                     axis: sortable.options.axis,
                     scrollSpeed: sortable.options.scrollSpeed,
                 };
-            })).toEqual({
-                axis: 'x',
-                scrollSpeed: 12,
-            });
+            })).toEqual({ axis: 'x', scrollSpeed: 12 });
         });
     });
 
     test.describe('#dispose', () => {
-        test('removes the Sortable', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const list = $.findOne('#list');
-                const sortable = UI.Sortable.init(list);
+        for (const { name, dispose } of [
+            { name: 'class', dispose: (instance) => instance.dispose() },
+            { name: 'QuerySet', dispose: () => $('#list').sortable('dispose') },
+        ]) {
+            test(`removes the Sortable (${name})`, async ({ page }) => {
+                const instance = await page.evaluateHandle(() =>
+                    UI.Sortable.init(document.querySelector('#list')),
+                );
+                await page.evaluate(dispose, instance);
 
-                sortable.dispose();
-
-                return !$.hasData(list, 'sortable') &&
-                    sortable.node === null &&
-                    sortable.options === null;
-            })).toBe(true);
-        });
+                expect(await instance.evaluate((value) => ({
+                    registered: $.hasData('#list', 'sortable'),
+                    node: value.node,
+                    options: value.options,
+                }))).toEqual({ registered: false, node: null, options: null });
+            });
+        }
 
         test('can be called multiple times', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const sortable = UI.Sortable.init($.findOne('#list'));
+            await page.evaluate((_) => {
+                const sortable = UI.Sortable.init(document.querySelector('#list'));
 
-                try {
-                    sortable.dispose();
-                    sortable.dispose();
-                    sortable.dispose();
-                    return true;
-                } catch {
-                    return false;
-                }
-            })).toBe(true);
-        });
+                sortable.dispose();
+                sortable.dispose();
+                sortable.dispose();
+            });
 
-        test('removes the Sortable (query)', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                $('#list').sortable();
-                $('#list').sortable('dispose');
-
-                return $.hasData('#list', 'sortable');
-            })).toBe(false);
+            expect(await page.evaluate(() => $.hasData('#list', 'sortable'))).toBe(false);
         });
 
         test('removes the Sortable when its node is removed', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                const list = $.findOne('#list');
+                const list = document.querySelector('#list');
                 const sortable = UI.Sortable.init(list);
                 $.remove(list);
 
-                return sortable.node === null &&
-                    sortable.options === null &&
-                    !$.isConnected(list);
-            })).toBe(true);
+                return {
+                    node: sortable.node,
+                    options: sortable.options,
+                    connected: list.isConnected,
+                };
+            })).toEqual({ node: null, options: null, connected: false });
 
             await expect(page.locator('#list')).toHaveCount(0);
         });
     });
 
-    test.describe('#disable', () => {
-        test('disables the Sortable', async ({ page }) => {
-            await page.evaluate((_) => {
-                const sortable = UI.Sortable.init($.findOne('#list'));
-                sortable.disable();
-            });
+    for (const method of ['disable', 'enable']) {
+        test.describe(`#${method}`, () => {
+            for (const { name, update } of [
+                { name: 'class', update: (method) => $.getData('#list', 'sortable')[method]() },
+                { name: 'QuerySet', update: (method) => $('#list').sortable(method) },
+            ]) {
+                test(`${method}s sorting (${name})`, async ({ page }) => {
+                    await page.evaluate((method) => {
+                        UI.Sortable.init(document.querySelector('#list'), {
+                            disabled: method === 'enable',
+                        });
+                    }, method);
+                    await page.evaluate(update, method);
 
-            await drag(page, '#one', '#three', { y: 0.8 });
+                    await drag(page, '#one', '#three', { y: 0.8 });
 
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
+                    await expect(page.locator('#list > li')).toHaveText(
+                        method === 'enable' ? ['Two', 'Three', 'One'] : ['One', 'Two', 'Three'],
+                    );
+                });
+            }
         });
-
-        test('disables the Sortable (query)', async ({ page }) => {
-            await page.evaluate((_) => {
-                $('#list').sortable();
-                $('#list').sortable('disable');
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-        });
-    });
-
-    test.describe('#enable', () => {
-        test('enables the Sortable', async ({ page }) => {
-            await page.evaluate((_) => {
-                const sortable = UI.Sortable.init(
-                    $.findOne('#list'),
-                    { disabled: true },
-                );
-                sortable.enable();
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
-        });
-
-        test('enables the Sortable (query)', async ({ page }) => {
-            await page.evaluate((_) => {
-                $('#list').sortable({ disabled: true });
-                $('#list').sortable('enable');
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
-        });
-    });
+    }
 
     test.describe('#items', () => {
-        test('gets the Sortable items', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const sortable = UI.Sortable.init($.findOne('#list'));
-                return sortable.items().map((node) => node.id);
-            })).toEqual(['one', 'two', 'three']);
-        });
+        for (const { name, items } of [
+            { name: 'class', items: () => $.getData('#list', 'sortable').items() },
+            { name: 'QuerySet', items: () => $('#list').sortable('items') },
+        ]) {
+            test(`gets the Sortable items (${name})`, async ({ page }) => {
+                await page.evaluate(() => UI.Sortable.init(document.querySelector('#list')));
+                const result = await page.evaluateHandle(items);
+
+                expect(await result.evaluate((nodes) => nodes.map((node) => node.id))).toEqual([
+                    'one', 'two', 'three',
+                ]);
+            });
+        }
 
         test('gets custom Sortable items', async ({ page }) => {
             expect(await page.evaluate((_) => {
-                $.setHTML(
-                    document.body,
+                document.body.innerHTML =
                     '<div id="list">' +
-                        '<div class="item" id="one">One</div>' +
-                        '<div id="ignored">Ignored</div>' +
-                        '<div class="item" id="two">Two</div>' +
-                    '</div>',
-                );
-                const sortable = UI.Sortable.init(
-                    $.findOne('#list'),
-                    { items: ':scope > .item' },
-                );
+                    '<div class="item" id="one">One</div>' +
+                    '<div id="ignored">Ignored</div>' +
+                    '<div class="item" id="two">Two</div>' +
+                    '</div>';
+                const sortable = UI.Sortable.init(document.querySelector('#list'), {
+                    items: ':scope > .item',
+                });
 
                 return sortable.items().map((node) => node.id);
             })).toEqual(['one', 'two']);
-        });
-
-        test('gets the Sortable items (query)', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                $('#list').sortable();
-                return $('#list').sortable('items').map((node) => node.id);
-            })).toEqual(['one', 'two', 'three']);
         });
     });
 
     test.describe('sorting', () => {
         test('sorts items', async ({ page }) => {
             await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#list'));
+                UI.Sortable.init(document.querySelector('#list'));
             });
 
             await drag(page, '#one', '#three', { y: 0.8 });
@@ -278,7 +221,7 @@ test.describe('Sortable', () => {
             await page.evaluate((_) => {
                 window.sortCount = 0;
                 $.addEvent('#list', 'sort.ui.sortable', (_) => window.sortCount++);
-                UI.Sortable.init($.findOne('#list'));
+                UI.Sortable.init(document.querySelector('#list'));
             });
 
             await page.locator('#one').click();
@@ -291,7 +234,7 @@ test.describe('Sortable', () => {
             await page.evaluate((_) => {
                 window.sortCount = 0;
                 $.addEvent('#list', 'sort.ui.sortable', (_) => window.sortCount++);
-                UI.Sortable.init($.findOne('#list'));
+                UI.Sortable.init(document.querySelector('#list'));
             });
 
             const oneBox = await page.locator('#one').boundingBox();
@@ -311,111 +254,169 @@ test.describe('Sortable', () => {
     });
 
     test.describe('cancel option', () => {
-        test('does not sort from a nested cancel control', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.setHTML(
-                    '#one',
-                    '<span>One</span>' +
-                    '<button id="cancel" type="button">' +
-                        '<span id="cancel-icon">Cancel</span>' +
-                    '</button>',
+        for (const { name, markup, options, allowed } of [
+            {
+                name: 'nested button content',
+                markup: '<button><span id="start">One</span></button>',
+                options: {},
+                allowed: false,
+            },
+            {
+                name: 'handle inside a button',
+                markup: '<button><span id="start" class="handle">One</span></button>',
+                options: { handle: '.handle' },
+                allowed: false,
+            },
+            {
+                name: 'button used as a handle',
+                markup: '<button id="start" class="handle">One</button>',
+                options: { handle: '.handle' },
+                allowed: false,
+            },
+            {
+                name: 'custom cancel ancestor',
+                markup: '<div class="cancel"><span id="start" class="handle">One</span></div>',
+                options: { handle: '.handle', cancel: '.cancel' },
+                allowed: false,
+            },
+            {
+                name: 'cancel disabled',
+                markup: '<button><span id="start" class="handle">One</span></button>',
+                options: { handle: '.handle', cancel: null },
+                allowed: true,
+            },
+            {
+                name: 'container matches cancel',
+                markup: '<span id="start" class="handle">One</span>',
+                options: { handle: '.handle', cancel: '#list' },
+                allowed: true,
+            },
+        ]) {
+            test(`${allowed ? 'sorts' : 'does not sort'} from ${name}`, async ({ page }) => {
+                await page.evaluate(({ markup, options }) => {
+                    document.querySelector('#one').innerHTML = markup;
+                    window.sortCount = 0;
+                    $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
+                    UI.Sortable.init(document.querySelector('#list'), options);
+                }, { markup, options });
+
+                await drag(page, '#start', '#three', { y: 0.8 });
+
+                await expect(page.locator('#list > li')).toHaveText(
+                    allowed ? ['Two', 'Three', 'One'] : ['One', 'Two', 'Three'],
                 );
-                window.sortCount = 0;
-                $.addEvent('#list', 'sort.ui.sortable', (_) => window.sortCount++);
-                UI.Sortable.init($.findOne('#list'));
+                expect(await page.evaluate(() => window.sortCount)).toBe(allowed ? 1 : 0);
             });
-
-            await drag(page, '#cancel-icon', '#three', { y: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText([
-                'OneCancel',
-                'Two',
-                'Three',
-            ]);
-            expect(await page.evaluate((_) => window.sortCount)).toBe(0);
-        });
+        }
     });
 
     test.describe('cursor option', () => {
         test('styles the Sortable items', async ({ page }) => {
             await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#list'), { cursor: 'grab' });
+                UI.Sortable.init(document.querySelector('#list'), { cursor: 'grab' });
             });
 
             const items = page.locator('#list > li');
             await expect(items).toHaveCount(3);
-            for (let index = 0; index < 3; index++) {
-                await expect(items.nth(index)).toHaveCSS('cursor', 'grab');
+            for (const item of await items.all()) {
+                await expect(item).toHaveCSS('cursor', 'grab');
             }
         });
 
-        test('restores the original cursor styles when disposed', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                $.setStyle('#one', { cursor: 'crosshair' });
-                const sortable = UI.Sortable.init(
-                    $.findOne('#list'),
-                    { cursor: 'grab' },
-                );
+        for (const { name, value, priority } of [
+            { name: 'absent', value: '', priority: '' },
+            { name: 'inline', value: 'crosshair', priority: '' },
+            { name: 'important', value: 'crosshair', priority: 'important' },
+        ]) {
+            test(`restores ${name} cursors and releases locks on disposal`, async ({ page }) => {
+                const original = { value, priority };
+                const instance = await page.evaluateHandle(({ value, priority }) => {
+                    document.querySelector('#one').style.setProperty('cursor', value, priority);
 
-                sortable.dispose();
+                    return UI.Sortable.init(document.querySelector('#list'), { cursor: 'grab' });
+                }, original);
 
-                return $.find('#list > li').map((node) => ({
-                    cursor: $.getStyle(node, 'cursor'),
-                    hasOriginalCursor: $.hasDataset(node, 'uiOriginalCursor'),
-                }));
-            })).toEqual([
-                {
-                    cursor: 'crosshair',
-                    hasOriginalCursor: false,
-                },
-                {
-                    cursor: '',
-                    hasOriginalCursor: false,
-                },
-                {
-                    cursor: '',
-                    hasOriginalCursor: false,
-                },
-            ]);
-        });
+                await expect(page.locator('#one')).toHaveCSS('cursor', 'grab');
+                await instance.evaluate((sortable) => sortable.dispose());
+
+                expect(await page.locator('#one').evaluate((node) => ({
+                    value: node.style.getPropertyValue('cursor'),
+                    priority: node.style.getPropertyPriority('cursor'),
+                }))).toEqual(original);
+
+                // Acquiring a new lock fails if disposal left the previous lock active.
+                await page.locator('#one').evaluate((node) => {
+                    const release = $.setStyleLock(node, 'cursor', 'help');
+                    release();
+                });
+                await page.evaluate((_) => {
+                    UI.Sortable.init(document.querySelector('#list'), { cursor: 'copy' });
+                });
+
+                await expect(page.locator('#one')).toHaveCSS('cursor', 'copy');
+                await page.evaluate(() => $.getData('#list', 'sortable').dispose());
+
+                expect(await page.locator('#one').evaluate((node) => ({
+                    value: node.style.getPropertyValue('cursor'),
+                    priority: node.style.getPropertyPriority('cursor'),
+                }))).toEqual(original);
+            });
+        }
     });
 
     test.describe('handle option', () => {
         test('sorts only from the configured handle', async ({ page }) => {
             await page.evaluate((_) => {
-                $('#list > li').each((node) => {
-                    $.append(node, $.create('span', {
-                        class: 'handle float-end',
-                        text: 'Handle',
-                    }));
-                });
-                UI.Sortable.init($.findOne('#list'), {
+                for (const node of document.querySelectorAll('#list > li')) {
+                    const handle = document.createElement('span');
+                    handle.className = 'handle float-end';
+                    handle.textContent = 'Handle';
+                    node.append(handle);
+                }
+                UI.Sortable.init(document.querySelector('#list'), {
                     cursor: 'grab',
                     handle: '.handle',
                 });
             });
 
             await drag(page, '#one', '#three', { y: 0.8 });
-            await expect(page.locator('#list > li')).toHaveText([
-                'OneHandle',
-                'TwoHandle',
-                'ThreeHandle',
-            ]);
+            await expect(page.locator('#list > li')).toHaveText(['OneHandle', 'TwoHandle', 'ThreeHandle']);
 
             await drag(page, '#one .handle', '#three', { y: 0.8 });
-            await expect(page.locator('#list > li')).toHaveText([
-                'TwoHandle',
-                'ThreeHandle',
-                'OneHandle',
-            ]);
+            await expect(page.locator('#list > li')).toHaveText(['TwoHandle', 'ThreeHandle', 'OneHandle']);
         });
+
+        for (const itemClass of ['a', 'b']) {
+            for (const handleClass of ['handle', 'grip']) {
+                test(`supports grouped selectors (${itemClass}, ${handleClass})`, async ({ page }) => {
+                    await page.evaluate(({ itemClass, handleClass }) => {
+                        const one = document.querySelector('#one');
+                        one.classList.add(itemClass);
+                        one.innerHTML = '<span id="start" class="' + handleClass + '">One</span>';
+                        document.querySelector('#two').classList.add('a');
+                        document.querySelector('#three').classList.add('b');
+
+                        UI.Sortable.init(document.querySelector('#list'), {
+                            items: ':scope > .a, :scope > .b',
+                            handle: '.handle, .grip',
+                            cursor: 'grab',
+                        });
+                    }, { itemClass, handleClass });
+
+                    await expect(page.locator('#start')).toHaveCSS('cursor', 'grab');
+                    await drag(page, '#start', '#three', { y: 0.8 });
+
+                    await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
+                });
+            }
+        }
     });
 
     test.describe('helperClass option', () => {
         test('adds helper classes while sorting', async ({ page }) => {
             await page.evaluate((_) => {
-                $.addClass('#one', 'existing');
-                UI.Sortable.init($.findOne('#list'), {
+                document.querySelector('#one').classList.add('existing');
+                UI.Sortable.init(document.querySelector('#list'), {
                     helperClass: 'active extra',
                 });
             });
@@ -447,8 +448,8 @@ test.describe('Sortable', () => {
     test.describe('axis option', () => {
         test('sorts horizontally', async ({ page }) => {
             await page.evaluate((_) => {
-                $.addClass('#list', 'list-group-horizontal');
-                UI.Sortable.init($.findOne('#list'), { axis: 'x' });
+                document.querySelector('#list').classList.add('list-group-horizontal');
+                UI.Sortable.init(document.querySelector('#list'), { axis: 'x' });
             });
 
             await drag(page, '#one', '#three', { x: 0.8 });
@@ -458,115 +459,56 @@ test.describe('Sortable', () => {
     });
 
     test.describe('swapThreshold option', () => {
-        test('swaps after crossing one quarter of an item', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#list'));
-            });
+        for (const { name, threshold, before, after } of [
+            { name: 'default', threshold: undefined, before: 0.2, after: 0.3 },
+            { name: 'custom', threshold: 0.75, before: 0.5, after: 0.8 },
+        ]) {
+            for (const reverse of [false, true]) {
+                test(`uses the ${name} threshold moving ${reverse ? 'backward' : 'forward'}`, async ({ page }) => {
+                    await page.evaluate(({ threshold, reverse }) => {
+                        if (reverse) {
+                            document.querySelector('#one').before(document.querySelector('#two'));
+                        }
 
-            const oneBox = await page.locator('#one').boundingBox();
-            const twoBox = await page.locator('#two').boundingBox();
-            if (!oneBox || !twoBox) {
-                throw new Error('Could not measure threshold drag elements.');
+                        UI.Sortable.init(
+                            document.querySelector('#list'),
+                            threshold === undefined ? {} : { swapThreshold: threshold },
+                        );
+                    }, { threshold, reverse });
+
+                    const oneBox = await page.locator('#one').boundingBox();
+                    const twoBox = await page.locator('#two').boundingBox();
+                    if (!oneBox || !twoBox) {
+                        throw new Error('Could not measure threshold drag elements.');
+                    }
+
+                    const x = oneBox.x + oneBox.width / 2;
+                    const y = oneBox.y + oneBox.height / 2;
+                    await page.mouse.move(x, y);
+                    await page.mouse.down();
+                    await page.mouse.move(x, y + (reverse ? -1 : 1));
+                    await page.mouse.move(x, twoBox.y + twoBox.height * (reverse ? 1 - before : before));
+
+                    await expect(page.locator('#list > li')).toHaveText(
+                        reverse ? ['Two', 'One', 'Three'] : ['One', 'Two', 'Three'],
+                    );
+
+                    await page.mouse.move(x, twoBox.y + twoBox.height * (reverse ? 1 - after : after));
+
+                    await expect(page.locator('#list > li')).toHaveText(
+                        reverse ? ['One', 'Two', 'Three'] : ['Two', 'One', 'Three'],
+                    );
+                    await page.mouse.up();
+                });
             }
-
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2,
-            );
-            await page.mouse.down();
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2 + 1,
-            );
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.2,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.3,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'One', 'Three']);
-            await page.mouse.up();
-        });
-
-        test('swaps in reverse after crossing one quarter of an item', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.before('#one', '#two');
-                UI.Sortable.init($.findOne('#list'));
-            });
-
-            const oneBox = await page.locator('#one').boundingBox();
-            const twoBox = await page.locator('#two').boundingBox();
-            if (!oneBox || !twoBox) {
-                throw new Error('Could not measure reverse threshold drag elements.');
-            }
-
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2,
-            );
-            await page.mouse.down();
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2 - 1,
-            );
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.8,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'One', 'Three']);
-
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.7,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-            await page.mouse.up();
-        });
-
-        test('supports a custom swap threshold', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#list'), { swapThreshold: 0.75 });
-            });
-
-            const oneBox = await page.locator('#one').boundingBox();
-            const twoBox = await page.locator('#two').boundingBox();
-            if (!oneBox || !twoBox) {
-                throw new Error('Could not measure custom threshold drag elements.');
-            }
-
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2,
-            );
-            await page.mouse.down();
-            await page.mouse.move(
-                oneBox.x + oneBox.width / 2,
-                oneBox.y + oneBox.height / 2 + 1,
-            );
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.5,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-
-            await page.mouse.move(
-                twoBox.x + twoBox.width / 2,
-                twoBox.y + twoBox.height * 0.8,
-            );
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'One', 'Three']);
-            await page.mouse.up();
-        });
+        }
     });
 
     test.describe('events', () => {
         test('triggers sorting lifecycle events in order', async ({ page }) => {
             await page.evaluate((_) => {
                 window.sortableEvents = [];
-                const list = $.findOne('#list');
+                const list = document.querySelector('#list');
 
                 $.addEvent(
                     list,
@@ -655,7 +597,7 @@ test.describe('Sortable', () => {
             page.on('pageerror', (error) => errors.push(error.message));
 
             await page.evaluate((_) => {
-                const list = $.findOne('#list');
+                const list = document.querySelector('#list');
                 const sortable = UI.Sortable.init(list);
                 $.addEvent(list, 'sort.ui.sortable', (_) => sortable.dispose());
             });
@@ -666,229 +608,6 @@ test.describe('Sortable', () => {
             expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
             await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
             await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
-        });
-    });
-
-    test.describe('connectWith option', () => {
-        test.beforeEach(async ({ page }) => {
-            await page.evaluate((_) => {
-                $.setHTML(
-                    document.body,
-                    '<div class="d-flex gap-5">' +
-                        '<ul class="connected list-group" id="source" ' +
-                            'style="min-height: 80px; width: 240px">' +
-                            '<li class="list-group-item" id="one">One</li>' +
-                            '<li class="list-group-item" id="two">Two</li>' +
-                        '</ul>' +
-                        '<ul class="connected list-group" id="destination" ' +
-                            'style="min-height: 80px; width: 240px">' +
-                            '<li class="list-group-item" id="three">Three</li>' +
-                        '</ul>' +
-                    '</div>',
-                );
-            });
-        });
-
-        test('moves items between connected containers', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#source'), {
-                    connectWith: '.connected',
-                    cursor: 'grab',
-                });
-                UI.Sortable.init($.findOne('#destination'), {
-                    connectWith: '.connected',
-                    cursor: 'copy',
-                });
-            });
-
-            await drag(page, '#one', '#destination', { y: 0.95 });
-
-            await expect(page.locator('#source > li')).toHaveText(['Two']);
-            await expect(page.locator('#destination > li')).toHaveText(['Three', 'One']);
-            await expect(page.locator('#one')).toHaveCSS('cursor', 'copy');
-        });
-
-        test('triggers transfer events in order', async ({ page }) => {
-            await page.evaluate((_) => {
-                window.transferEvents = [];
-                $('.connected').addEvent(
-                    'sort.ui.sortable send.ui.sortable receive.ui.sortable ' +
-                    'sorted.ui.sortable update.ui.sortable',
-                    (event) => {
-                        window.transferEvents.push({
-                            currentTarget: event.currentTarget.id,
-                            from: event.from.id,
-                            item: event.item.id,
-                            newIndex: event.newIndex,
-                            oldIndex: event.oldIndex,
-                            to: event.to.id,
-                            type: event.type,
-                        });
-                    },
-                );
-                $('.connected').sortable({ connectWith: '.connected' });
-            });
-
-            await drag(page, '#one', '#destination', { y: 0.95 });
-
-            expect(await page.evaluate((_) => window.transferEvents)).toEqual([
-                {
-                    currentTarget: 'source',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 0,
-                    oldIndex: 0,
-                    to: 'source',
-                    type: 'sort',
-                },
-                {
-                    currentTarget: 'source',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 0,
-                    oldIndex: 0,
-                    to: 'destination',
-                    type: 'send',
-                },
-                {
-                    currentTarget: 'destination',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 0,
-                    oldIndex: 0,
-                    to: 'destination',
-                    type: 'receive',
-                },
-                {
-                    currentTarget: 'destination',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 1,
-                    oldIndex: 0,
-                    to: 'destination',
-                    type: 'sorted',
-                },
-                {
-                    currentTarget: 'source',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 1,
-                    oldIndex: 0,
-                    to: 'destination',
-                    type: 'update',
-                },
-                {
-                    currentTarget: 'destination',
-                    from: 'source',
-                    item: 'one',
-                    newIndex: 1,
-                    oldIndex: 0,
-                    to: 'destination',
-                    type: 'update',
-                },
-            ]);
-        });
-
-        test('drops into an empty connected container', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.empty('#destination');
-                $('.connected').sortable({ connectWith: '.connected' });
-            });
-
-            await drag(page, '#one', '#destination');
-
-            await expect(page.locator('#source > li')).toHaveText(['Two']);
-            await expect(page.locator('#destination > li')).toHaveText(['One']);
-        });
-
-        test('does not drop into an empty container when disabled', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.empty('#destination');
-                UI.Sortable.init($.findOne('#source'), { connectWith: '.connected' });
-                UI.Sortable.init($.findOne('#destination'), {
-                    connectWith: '.connected',
-                    dropOnEmpty: false,
-                });
-            });
-
-            await drag(page, '#one', '#destination');
-
-            await expect(page.locator('#source > li')).toHaveCount(2);
-            await expect(page.locator('#destination > li')).toHaveCount(0);
-        });
-
-        test('does not drop into a disabled connected container', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init($.findOne('#source'), { connectWith: '.connected' });
-                UI.Sortable.init($.findOne('#destination'), {
-                    connectWith: '.connected',
-                    disabled: true,
-                });
-            });
-
-            await drag(page, '#one', '#three');
-
-            await expect(page.locator('#source > li')).toHaveCount(2);
-            await expect(page.locator('#destination > li')).toHaveText(['Three']);
-        });
-    });
-
-    test.describe('scroll option', () => {
-        test('scrolls the window near the bottom-right edge', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.setStyle(document.body, {
-                    height: '1600px',
-                    width: '1600px',
-                });
-                UI.Sortable.init($.findOne('#list'), {
-                    scrollSensitivity: 60,
-                    scrollSpeed: 30,
-                });
-            });
-
-            const sourceBox = await page.locator('#one').boundingBox();
-            if (!sourceBox) {
-                throw new Error('Could not measure scroll drag element.');
-            }
-
-            await page.mouse.move(sourceBox.x + 10, sourceBox.y + 10);
-            await page.mouse.down();
-            await page.mouse.move(790, 590, { steps: 8 });
-
-            await expect.poll(async () =>
-                page.evaluate((_) => window.scrollX),
-            ).toBeGreaterThan(0);
-            await expect.poll(async () =>
-                page.evaluate((_) => window.scrollY),
-            ).toBeGreaterThan(0);
-            expect(await page.evaluate((_) =>
-                document.documentElement.style.scrollBehavior,
-            )).toBe('');
-
-            await page.mouse.up();
-        });
-
-        test('does not scroll the window when disabled', async ({ page }) => {
-            await page.evaluate((_) => {
-                $.setStyle(document.body, { height: '1600px' });
-                UI.Sortable.init($.findOne('#list'), { scroll: false });
-            });
-
-            const sourceBox = await page.locator('#one').boundingBox();
-            if (!sourceBox) {
-                throw new Error('Could not measure non-scrolling drag element.');
-            }
-
-            await page.mouse.move(sourceBox.x + 10, sourceBox.y + 10);
-            await page.mouse.down();
-            await page.mouse.move(400, 590, { steps: 8 });
-            await page.evaluate((_) => new Promise((resolve) => {
-                requestAnimationFrame((_) => requestAnimationFrame(resolve));
-            }));
-
-            expect(await page.evaluate((_) => window.scrollY)).toBe(0);
-
-            await page.mouse.up();
         });
     });
 });

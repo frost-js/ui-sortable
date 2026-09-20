@@ -2,30 +2,48 @@ import process from 'node:process';
 import { test as base, expect } from '@playwright/test';
 import { addCoverageReport } from 'monocart-reporter';
 
-let test = base;
+const collectCoverage = process.env.FROST_UI_SORTABLE_COVERAGE === 'true';
 
-if (process.env.FROST_UI_SORTABLE_COVERAGE === 'true') {
-    test = base.extend({
-        coverage: [
-            async ({ page }, use, testInfo) => {
+const test = base.extend({
+    uiPage: [
+        async ({ page }, use, testInfo) => {
+            if (collectCoverage) {
                 await page.coverage.startJSCoverage({
                     resetOnNavigation: false,
                 });
+            }
 
-                await use();
+            await page.goto('/', {
+                waitUntil: 'domcontentloaded',
+            });
 
-                const coverage = await page.coverage.stopJSCoverage();
-
-                if (coverage.length) {
-                    await addCoverageReport(coverage, testInfo);
+            await page.evaluate((_) => {
+                if (!window.fQuery || !window.UI?.Sortable ||
+                    typeof window.fQuery.QuerySet.prototype.sortable !== 'function') {
+                    throw new Error('Failed to initialize Sortable on the test page.');
                 }
-            },
-            {
-                auto: true,
-                scope: 'test',
-            },
-        ],
-    });
-}
+
+                document.body.replaceChildren();
+            });
+
+            await page.waitForFunction((_) => {
+                const node = document.createElement('div');
+                node.className = 'text-center';
+                document.body.append(node);
+                const ready = getComputedStyle(node).textAlign === 'center';
+                node.remove();
+                return ready;
+            });
+
+            await use();
+
+            if (collectCoverage) {
+                const coverage = await page.coverage.stopJSCoverage();
+                await addCoverageReport(coverage, testInfo);
+            }
+        },
+        { auto: true },
+    ],
+});
 
 export { expect, test };
