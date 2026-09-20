@@ -48,7 +48,7 @@ const sortable = Sortable.init(
 );
 ```
 
-`@fr0st/ui` and `@fr0st/query` are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
+Frost UI 4 (`@fr0st/ui@^4.0.0`) and fQuery 5 (`@fr0st/query@^5.0.0`) are peer dependencies so the component shares the application's UI and fQuery instances. The package root, `dist/*`, and `src/*` are available through package exports.
 
 Sortable requires a browser DOM or a compatible DOM environment configured through fQuery. Server-rendered applications should load the component on the client.
 
