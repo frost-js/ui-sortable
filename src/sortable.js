@@ -188,7 +188,7 @@ export default class Sortable extends BaseComponent {
                 (
                     $.is(e.target, this.options.cancel) ||
                     $.is(e.currentTarget, this.options.cancel) ||
-                    $.closest(e.target, this.options.cancel, e.currentTarget).length
+                    $.closest(e.target, this.options.cancel, this.node).length
                 );
 
             if (

@@ -216,7 +216,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#events() {
 			const downEvent = (e) => {
-				const cancelled = this.options.cancel && (_fr0st_query.default.is(e.target, this.options.cancel) || _fr0st_query.default.is(e.currentTarget, this.options.cancel) || _fr0st_query.default.closest(e.target, this.options.cancel, e.currentTarget).length);
+				const cancelled = this.options.cancel && (_fr0st_query.default.is(e.target, this.options.cancel) || _fr0st_query.default.is(e.currentTarget, this.options.cancel) || _fr0st_query.default.closest(e.target, this.options.cancel, this.node).length);
 				if (e.button || !this.#enabled || cancelled || _fr0st_query.default.getDataset(this.node, "uiDragging")) return false;
 				this.#target = this.options.handle ? this.items().find((node) => _fr0st_query.default.hasDescendent(node, e.currentTarget)) : e.currentTarget;
 				if (!this.#target) return false;

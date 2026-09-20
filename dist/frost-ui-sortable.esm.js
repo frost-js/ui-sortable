@@ -184,7 +184,7 @@ var Sortable = class extends BaseComponent {
 	*/
 	#events() {
 		const downEvent = (e) => {
-			const cancelled = this.options.cancel && ($.is(e.target, this.options.cancel) || $.is(e.currentTarget, this.options.cancel) || $.closest(e.target, this.options.cancel, e.currentTarget).length);
+			const cancelled = this.options.cancel && ($.is(e.target, this.options.cancel) || $.is(e.currentTarget, this.options.cancel) || $.closest(e.target, this.options.cancel, this.node).length);
 			if (e.button || !this.#enabled || cancelled || $.getDataset(this.node, "uiDragging")) return false;
 			this.#target = this.options.handle ? this.items().find((node) => $.hasDescendent(node, e.currentTarget)) : e.currentTarget;
 			if (!this.#target) return false;
