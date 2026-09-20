@@ -146,6 +146,24 @@ test.describe('Sortable', () => {
 
             await expect(page.locator('#list')).toHaveCount(0);
         });
+
+        test('survives disposal from a sort listener', async ({ page }) => {
+            const errors = [];
+            page.on('pageerror', (error) => errors.push(error.message));
+
+            await page.evaluate((_) => {
+                const list = document.querySelector('#list');
+                const sortable = UI.Sortable.init(list);
+                $.addEvent(list, 'sort.ui.sortable', (_) => sortable.dispose());
+            });
+
+            await drag(page, '#one', '#three', { y: 0.8 });
+
+            expect(errors).toEqual([]);
+            expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
+            await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
+            await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
+        });
     });
 
     for (const method of ['disable', 'enable']) {
@@ -207,6 +225,95 @@ test.describe('Sortable', () => {
         });
     });
 
+    test.describe('events', () => {
+        test('triggers sorting lifecycle events in order', async ({ page }) => {
+            await page.evaluate((_) => {
+                window.sortableEvents = [];
+                const list = document.querySelector('#list');
+
+                $.addEvent(
+                    list,
+                    'sort.ui.sortable sorting.ui.sortable sorted.ui.sortable update.ui.sortable',
+                    (event) => {
+                        window.sortableEvents.push({
+                            detailItem: event.detail.item.id,
+                            detailTarget: event.detail.target.id,
+                            from: event.from.id,
+                            item: event.item.id,
+                            namespace: event.namespace,
+                            newIndex: event.newIndex,
+                            oldIndex: event.oldIndex,
+                            to: event.to.id,
+                            type: event.type,
+                        });
+                    },
+                );
+
+                UI.Sortable.init(list, { cursor: 'grab' });
+            });
+
+            await drag(page, '#one', '#three', { y: 0.8 });
+
+            expect(await page.evaluate((_) => window.sortableEvents)).toEqual([
+                {
+                    detailItem: 'one',
+                    detailTarget: 'one',
+                    from: 'list',
+                    item: 'one',
+                    namespace: 'ui.sortable',
+                    newIndex: 0,
+                    oldIndex: 0,
+                    to: 'list',
+                    type: 'sort',
+                },
+                {
+                    detailItem: 'one',
+                    detailTarget: 'one',
+                    from: 'list',
+                    item: 'one',
+                    namespace: 'ui.sortable',
+                    newIndex: 1,
+                    oldIndex: 0,
+                    to: 'list',
+                    type: 'sorting',
+                },
+                {
+                    detailItem: 'one',
+                    detailTarget: 'one',
+                    from: 'list',
+                    item: 'one',
+                    namespace: 'ui.sortable',
+                    newIndex: 2,
+                    oldIndex: 1,
+                    to: 'list',
+                    type: 'sorting',
+                },
+                {
+                    detailItem: 'one',
+                    detailTarget: 'one',
+                    from: 'list',
+                    item: 'one',
+                    namespace: 'ui.sortable',
+                    newIndex: 2,
+                    oldIndex: 0,
+                    to: 'list',
+                    type: 'sorted',
+                },
+                {
+                    detailItem: 'one',
+                    detailTarget: 'one',
+                    from: 'list',
+                    item: 'one',
+                    namespace: 'ui.sortable',
+                    newIndex: 2,
+                    oldIndex: 0,
+                    to: 'list',
+                    type: 'update',
+                },
+            ]);
+        });
+    });
+
     test.describe('sorting', () => {
         test('sorts items', async ({ page }) => {
             await page.evaluate((_) => {
@@ -253,6 +360,19 @@ test.describe('Sortable', () => {
 
             await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
             expect(await page.evaluate((_) => window.sortCount)).toBe(0);
+        });
+    });
+
+    test.describe('axis option', () => {
+        test('sorts horizontally', async ({ page }) => {
+            await page.evaluate((_) => {
+                document.querySelector('#list').classList.add('list-group-horizontal');
+                UI.Sortable.init(document.querySelector('#list'), { axis: 'x' });
+            });
+
+            await drag(page, '#one', '#three', { x: 0.8 });
+
+            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
         });
     });
 
@@ -448,19 +568,6 @@ test.describe('Sortable', () => {
         });
     });
 
-    test.describe('axis option', () => {
-        test('sorts horizontally', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#list').classList.add('list-group-horizontal');
-                UI.Sortable.init(document.querySelector('#list'), { axis: 'x' });
-            });
-
-            await drag(page, '#one', '#three', { x: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
-        });
-    });
-
     test.describe('swapThreshold option', () => {
         for (const { name, options, order, delta, before, after } of [
             {
@@ -524,112 +631,5 @@ test.describe('Sortable', () => {
                 await page.mouse.up();
             });
         }
-    });
-
-    test.describe('events', () => {
-        test('triggers sorting lifecycle events in order', async ({ page }) => {
-            await page.evaluate((_) => {
-                window.sortableEvents = [];
-                const list = document.querySelector('#list');
-
-                $.addEvent(
-                    list,
-                    'sort.ui.sortable sorting.ui.sortable sorted.ui.sortable update.ui.sortable',
-                    (event) => {
-                        window.sortableEvents.push({
-                            detailItem: event.detail.item.id,
-                            detailTarget: event.detail.target.id,
-                            from: event.from.id,
-                            item: event.item.id,
-                            namespace: event.namespace,
-                            newIndex: event.newIndex,
-                            oldIndex: event.oldIndex,
-                            to: event.to.id,
-                            type: event.type,
-                        });
-                    },
-                );
-
-                UI.Sortable.init(list, { cursor: 'grab' });
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            expect(await page.evaluate((_) => window.sortableEvents)).toEqual([
-                {
-                    detailItem: 'one',
-                    detailTarget: 'one',
-                    from: 'list',
-                    item: 'one',
-                    namespace: 'ui.sortable',
-                    newIndex: 0,
-                    oldIndex: 0,
-                    to: 'list',
-                    type: 'sort',
-                },
-                {
-                    detailItem: 'one',
-                    detailTarget: 'one',
-                    from: 'list',
-                    item: 'one',
-                    namespace: 'ui.sortable',
-                    newIndex: 1,
-                    oldIndex: 0,
-                    to: 'list',
-                    type: 'sorting',
-                },
-                {
-                    detailItem: 'one',
-                    detailTarget: 'one',
-                    from: 'list',
-                    item: 'one',
-                    namespace: 'ui.sortable',
-                    newIndex: 2,
-                    oldIndex: 1,
-                    to: 'list',
-                    type: 'sorting',
-                },
-                {
-                    detailItem: 'one',
-                    detailTarget: 'one',
-                    from: 'list',
-                    item: 'one',
-                    namespace: 'ui.sortable',
-                    newIndex: 2,
-                    oldIndex: 0,
-                    to: 'list',
-                    type: 'sorted',
-                },
-                {
-                    detailItem: 'one',
-                    detailTarget: 'one',
-                    from: 'list',
-                    item: 'one',
-                    namespace: 'ui.sortable',
-                    newIndex: 2,
-                    oldIndex: 0,
-                    to: 'list',
-                    type: 'update',
-                },
-            ]);
-        });
-
-        test('survives disposal from a sort listener', async ({ page }) => {
-            const errors = [];
-            page.on('pageerror', (error) => errors.push(error.message));
-
-            await page.evaluate((_) => {
-                const list = document.querySelector('#list');
-                const sortable = UI.Sortable.init(list);
-                $.addEvent(list, 'sort.ui.sortable', (_) => sortable.dispose());
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            expect(errors).toEqual([]);
-            expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
-            await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
-            await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
-        });
     });
 });
