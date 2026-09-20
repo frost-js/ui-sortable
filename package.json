@@ -58,9 +58,9 @@
         "@fr0st/eslint-config": "^5.0.3",
         "@fr0st/query": "^5.0.0",
         "@fr0st/ui": "^4.0.0",
-        "@playwright/test": "^1.62.1",
+        "@playwright/test": "^1.63.0",
         "eslint": "^10.10.0",
-        "monocart-reporter": "^2.12.6",
+        "monocart-reporter": "^2.13.1",
         "vite": "^8.3.0"
     },
     "peerDependencies": {
