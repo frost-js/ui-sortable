@@ -2,15 +2,17 @@ import { BaseComponent, getPosition, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
 //#region src/helpers.js
+var cursorLocks = /* @__PURE__ */ new WeakMap();
 /**
 * Resets the cursor style for a collection of elements.
 * @param {Iterable<HTMLElement>} nodes The elements to restore.
 */
 function resetCursor(nodes) {
 	for (const node of nodes) {
-		if (!$.hasDataset(node, "uiOriginalCursor")) continue;
-		$.setStyle(node, { cursor: $.getDataset(node, "uiOriginalCursor") });
-		$.removeDataset(node, "uiOriginalCursor");
+		const release = cursorLocks.get(node);
+		if (!release) continue;
+		release();
+		cursorLocks.delete(node);
 	}
 }
 /**
@@ -19,10 +21,8 @@ function resetCursor(nodes) {
 * @param {string} cursor The cursor style.
 */
 function setCursor(nodes, cursor) {
-	for (const node of nodes) {
-		if (!$.hasDataset(node, "uiOriginalCursor")) $.setDataset(node, { uiOriginalCursor: $.getStyle(node, "cursor") });
-		$.setStyle(node, { cursor });
-	}
+	for (const node of nodes) if (cursorLocks.has(node)) $.setStyle(node, { cursor });
+	else cursorLocks.set(node, $.setStyleLock(node, "cursor", cursor));
 }
 
 //#endregion

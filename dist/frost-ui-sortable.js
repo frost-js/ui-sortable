@@ -34,15 +34,17 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 _fr0st_query = __toESM(_fr0st_query, 1);
 
 //#region src/helpers.js
-/**
+	var cursorLocks = /* @__PURE__ */ new WeakMap();
+	/**
 	* Resets the cursor style for a collection of elements.
 	* @param {Iterable<HTMLElement>} nodes The elements to restore.
 	*/
 	function resetCursor(nodes) {
 		for (const node of nodes) {
-			if (!_fr0st_query.default.hasDataset(node, "uiOriginalCursor")) continue;
-			_fr0st_query.default.setStyle(node, { cursor: _fr0st_query.default.getDataset(node, "uiOriginalCursor") });
-			_fr0st_query.default.removeDataset(node, "uiOriginalCursor");
+			const release = cursorLocks.get(node);
+			if (!release) continue;
+			release();
+			cursorLocks.delete(node);
 		}
 	}
 	/**
@@ -51,10 +53,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {string} cursor The cursor style.
 	*/
 	function setCursor(nodes, cursor) {
-		for (const node of nodes) {
-			if (!_fr0st_query.default.hasDataset(node, "uiOriginalCursor")) _fr0st_query.default.setDataset(node, { uiOriginalCursor: _fr0st_query.default.getStyle(node, "cursor") });
-			_fr0st_query.default.setStyle(node, { cursor });
-		}
+		for (const node of nodes) if (cursorLocks.has(node)) _fr0st_query.default.setStyle(node, { cursor });
+		else cursorLocks.set(node, _fr0st_query.default.setStyleLock(node, "cursor", cursor));
 	}
 
 //#endregion

@@ -1,19 +1,21 @@
 import $ from '@fr0st/query';
 
+const cursorLocks = new WeakMap();
+
 /**
  * Resets the cursor style for a collection of elements.
  * @param {Iterable<HTMLElement>} nodes The elements to restore.
  */
 export function resetCursor(nodes) {
     for (const node of nodes) {
-        if (!$.hasDataset(node, 'uiOriginalCursor')) {
+        const release = cursorLocks.get(node);
+
+        if (!release) {
             continue;
         }
 
-        $.setStyle(node, {
-            cursor: $.getDataset(node, 'uiOriginalCursor'),
-        });
-        $.removeDataset(node, 'uiOriginalCursor');
+        release();
+        cursorLocks.delete(node);
     }
 };
 
@@ -24,12 +26,10 @@ export function resetCursor(nodes) {
  */
 export function setCursor(nodes, cursor) {
     for (const node of nodes) {
-        if (!$.hasDataset(node, 'uiOriginalCursor')) {
-            $.setDataset(node, {
-                uiOriginalCursor: $.getStyle(node, 'cursor'),
-            });
+        if (cursorLocks.has(node)) {
+            $.setStyle(node, { cursor });
+        } else {
+            cursorLocks.set(node, $.setStyleLock(node, 'cursor', cursor));
         }
-
-        $.setStyle(node, { cursor });
     }
 };
