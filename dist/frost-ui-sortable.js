@@ -33,6 +33,31 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 //#endregion
 _fr0st_query = __toESM(_fr0st_query, 1);
 
+//#region src/helpers.js
+/**
+	* Resets the cursor style for a collection of elements.
+	* @param {Iterable<HTMLElement>} nodes The elements to restore.
+	*/
+	function resetCursor(nodes) {
+		for (const node of nodes) {
+			if (!_fr0st_query.default.hasDataset(node, "uiOriginalCursor")) continue;
+			_fr0st_query.default.setStyle(node, { cursor: _fr0st_query.default.getDataset(node, "uiOriginalCursor") });
+			_fr0st_query.default.removeDataset(node, "uiOriginalCursor");
+		}
+	}
+	/**
+	* Sets the cursor style for a collection of elements.
+	* @param {Iterable<HTMLElement>} nodes The elements to update.
+	* @param {string} cursor The cursor style.
+	*/
+	function setCursor(nodes, cursor) {
+		for (const node of nodes) {
+			if (!_fr0st_query.default.hasDataset(node, "uiOriginalCursor")) _fr0st_query.default.setDataset(node, { uiOriginalCursor: _fr0st_query.default.getStyle(node, "cursor") });
+			_fr0st_query.default.setStyle(node, { cursor });
+		}
+	}
+
+//#endregion
 //#region src/sortable.js
 	var document = _fr0st_query.default.getContext();
 	var window = _fr0st_query.default.getWindow();
@@ -102,7 +127,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.options.handle) this.#selector += ` ${this.options.handle}`;
 			this.#dragging = false;
 			this.#enabled = !this.options.disabled;
-			this.#refreshCursors();
+			setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
 			this.#events();
 		}
 		/**
@@ -116,6 +141,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.node) return;
 			_fr0st_query.default.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
 			_fr0st_query.default.removeEvent(this.node, "receive.ui.sortable");
+			resetCursor(_fr0st_query.default.find(this.#selector, this.node));
 			if (this.#target && this.options.helperClass) _fr0st_query.default.removeClass(this.#target, this.options.helperClass);
 			this.#resetDrag();
 			super.dispose();
@@ -326,15 +352,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent);
 			_fr0st_query.default.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
 			_fr0st_query.default.addEvent(this.node, "receive.ui.sortable", (_) => {
-				this.#refreshCursors();
+				setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
 			});
-		}
-		/**
-		* Refreshes Sortable item cursors.
-		*/
-		#refreshCursors() {
-			const elements = _fr0st_query.default.find(this.#selector, this.node);
-			_fr0st_query.default.setStyle(elements, { cursor: this.options.cursor });
 		}
 		/**
 		* Resets the active drag state.

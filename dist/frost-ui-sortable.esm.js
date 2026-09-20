@@ -1,6 +1,31 @@
 import { BaseComponent, getPosition, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
+//#region src/helpers.js
+/**
+* Resets the cursor style for a collection of elements.
+* @param {Iterable<HTMLElement>} nodes The elements to restore.
+*/
+function resetCursor(nodes) {
+	for (const node of nodes) {
+		if (!$.hasDataset(node, "uiOriginalCursor")) continue;
+		$.setStyle(node, { cursor: $.getDataset(node, "uiOriginalCursor") });
+		$.removeDataset(node, "uiOriginalCursor");
+	}
+}
+/**
+* Sets the cursor style for a collection of elements.
+* @param {Iterable<HTMLElement>} nodes The elements to update.
+* @param {string} cursor The cursor style.
+*/
+function setCursor(nodes, cursor) {
+	for (const node of nodes) {
+		if (!$.hasDataset(node, "uiOriginalCursor")) $.setDataset(node, { uiOriginalCursor: $.getStyle(node, "cursor") });
+		$.setStyle(node, { cursor });
+	}
+}
+
+//#endregion
 //#region src/sortable.js
 var document = $.getContext();
 var window = $.getWindow();
@@ -70,7 +95,7 @@ var Sortable = class extends BaseComponent {
 		if (this.options.handle) this.#selector += ` ${this.options.handle}`;
 		this.#dragging = false;
 		this.#enabled = !this.options.disabled;
-		this.#refreshCursors();
+		setCursor($.find(this.#selector, this.node), this.options.cursor);
 		this.#events();
 	}
 	/**
@@ -84,6 +109,7 @@ var Sortable = class extends BaseComponent {
 		if (!this.node) return;
 		$.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
 		$.removeEvent(this.node, "receive.ui.sortable");
+		resetCursor($.find(this.#selector, this.node));
 		if (this.#target && this.options.helperClass) $.removeClass(this.#target, this.options.helperClass);
 		this.#resetDrag();
 		super.dispose();
@@ -294,15 +320,8 @@ var Sortable = class extends BaseComponent {
 		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
 		$.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
 		$.addEvent(this.node, "receive.ui.sortable", (_) => {
-			this.#refreshCursors();
+			setCursor($.find(this.#selector, this.node), this.options.cursor);
 		});
-	}
-	/**
-	* Refreshes Sortable item cursors.
-	*/
-	#refreshCursors() {
-		const elements = $.find(this.#selector, this.node);
-		$.setStyle(elements, { cursor: this.options.cursor });
 	}
 	/**
 	* Resets the active drag state.

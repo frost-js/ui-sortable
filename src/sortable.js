@@ -1,5 +1,6 @@
 import $ from '@fr0st/query';
 import { BaseComponent, getPosition } from '@fr0st/ui';
+import { resetCursor, setCursor } from './helpers.js';
 
 const document = $.getContext();
 const window = $.getWindow();
@@ -80,7 +81,7 @@ export default class Sortable extends BaseComponent {
         this.#dragging = false;
         this.#enabled = !this.options.disabled;
 
-        this.#refreshCursors();
+        setCursor($.find(this.#selector, this.node), this.options.cursor);
         this.#events();
     }
 
@@ -99,6 +100,7 @@ export default class Sortable extends BaseComponent {
 
         $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
         $.removeEvent(this.node, 'receive.ui.sortable');
+        resetCursor($.find(this.#selector, this.node));
 
         if (this.#target && this.options.helperClass) {
             $.removeClass(this.#target, this.options.helperClass);
@@ -449,17 +451,8 @@ export default class Sortable extends BaseComponent {
         );
 
         $.addEvent(this.node, 'receive.ui.sortable', (_) => {
-            this.#refreshCursors();
+            setCursor($.find(this.#selector, this.node), this.options.cursor);
         });
-    }
-
-    /**
-     * Refreshes Sortable item cursors.
-     */
-    #refreshCursors() {
-        const elements = $.find(this.#selector, this.node);
-
-        $.setStyle(elements, { cursor: this.options.cursor });
     }
 
     /**

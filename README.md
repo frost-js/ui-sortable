@@ -266,7 +266,7 @@ Allow the instance to start and receive sorts.
 
 ### `dispose()`
 
-Detach Sortable events, cancel active auto-scrolling, clear active drag state, remove stored component data, and set `node` and `options` to `null`.
+Detach Sortable events, restore original cursor styles, cancel active auto-scrolling, clear active drag state, remove stored component data, and set `node` and `options` to `null`.
 
 ## fQuery plugin
 

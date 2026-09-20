@@ -348,6 +348,36 @@ test.describe('Sortable', () => {
                 await expect(items.nth(index)).toHaveCSS('cursor', 'grab');
             }
         });
+
+        test('restores the original cursor styles when disposed', async ({ page }) => {
+            expect(await page.evaluate((_) => {
+                $.setStyle('#one', { cursor: 'crosshair' });
+                const sortable = UI.Sortable.init(
+                    $.findOne('#list'),
+                    { cursor: 'grab' },
+                );
+
+                sortable.dispose();
+
+                return $.find('#list > li').map((node) => ({
+                    cursor: $.getStyle(node, 'cursor'),
+                    hasOriginalCursor: $.hasDataset(node, 'uiOriginalCursor'),
+                }));
+            })).toEqual([
+                {
+                    cursor: 'crosshair',
+                    hasOriginalCursor: false,
+                },
+                {
+                    cursor: '',
+                    hasOriginalCursor: false,
+                },
+                {
+                    cursor: '',
+                    hasOriginalCursor: false,
+                },
+            ]);
+        });
     });
 
     test.describe('handle option', () => {
