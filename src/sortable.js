@@ -59,6 +59,7 @@ export default class Sortable extends BaseComponent {
     #currentSortable;
     #dragging;
     #enabled;
+    #initialCursorNodes = [];
     #pos;
     #scrollFrame;
     #selector;
@@ -73,15 +74,22 @@ export default class Sortable extends BaseComponent {
     constructor(node, options) {
         super(node, options);
 
-        this.#selector = this.options.handle ?
-            `:is(${this.options.items}) :is(${this.options.handle})` :
-            this.options.items;
+        try {
+            this.#selector = this.options.handle ?
+                `:is(${this.options.items}) :is(${this.options.handle})` :
+                this.options.items;
 
-        this.#dragging = false;
-        this.#enabled = !this.options.disabled;
+            this.#dragging = false;
+            this.#enabled = !this.options.disabled;
 
-        setCursor($.find(this.#selector, this.node), this.options.cursor);
-        this.#events();
+            this.#initialCursorNodes = $.find(this.#selector, this.node);
+            setCursor(this.#initialCursorNodes, this.options.cursor);
+            this.#events();
+            this.#initialCursorNodes = null;
+        } catch (error) {
+            this.dispose();
+            throw error;
+        }
     }
 
     /**
@@ -99,7 +107,8 @@ export default class Sortable extends BaseComponent {
 
         $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
         $.removeEvent(this.node, 'receive.ui.sortable');
-        resetCursor($.find(this.#selector, this.node));
+        resetCursor(this.#initialCursorNodes ?? $.find(this.#selector, this.node));
+        this.#initialCursorNodes = [];
 
         if (this.#target && this.options.helperClass) {
             $.removeClass(this.#target, this.options.helperClass);

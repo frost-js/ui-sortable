@@ -98,6 +98,42 @@ test.describe('Sortable', () => {
                 };
             })).toEqual({ axis: 'x', scrollSpeed: 12 });
         });
+
+        test.describe('failed initialization', () => {
+            test('rolls back an invalid item selector', async ({ page }) => {
+                await expect(page.evaluate((_) =>
+                    UI.Sortable.init($.findOne('#list'), { items: '[' }),
+                )).rejects.toThrow();
+
+                expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
+                expect(await page.evaluate((_) => {
+                    const node = $.findOne('#list');
+                    const instance = UI.Sortable.init(node);
+                    return $.getData(node, 'sortable') === instance;
+                })).toBe(true);
+            });
+
+            test('rolls back a partial cursor lock without releasing another owner', async ({ page }) => {
+                await page.evaluate((_) => {
+                    $.setStyle('#one', { cursor: 'pointer' });
+                    $.setStyle('#two', { cursor: 'crosshair' });
+                });
+                const held = await page.evaluateHandle((_) => $.setStyleLock('#two', 'cursor', 'wait'));
+
+                await expect(page.evaluate((_) => UI.Sortable.init($.findOne('#list'))))
+                    .rejects.toThrow('CSS property "cursor" is already locked.');
+
+                expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
+                expect(await page.locator('#one').evaluate((node) => node.style.cursor)).toBe('pointer');
+                expect(await page.locator('#two').evaluate((node) => node.style.cursor)).toBe('wait');
+
+                await held.evaluate((release) => release());
+                await page.evaluate((_) => UI.Sortable.init($.findOne('#list')).dispose());
+
+                expect(await page.locator('#one').evaluate((node) => node.style.cursor)).toBe('pointer');
+                expect(await page.locator('#two').evaluate((node) => node.style.cursor)).toBe('crosshair');
+            });
+        });
     });
 
     test.describe('#dispose', () => {

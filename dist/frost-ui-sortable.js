@@ -127,6 +127,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#currentSortable;
 		#dragging;
 		#enabled;
+		#initialCursorNodes = [];
 		#pos;
 		#scrollFrame;
 		#selector;
@@ -139,11 +140,18 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		constructor(node, options) {
 			super(node, options);
-			this.#selector = this.options.handle ? `:is(${this.options.items}) :is(${this.options.handle})` : this.options.items;
-			this.#dragging = false;
-			this.#enabled = !this.options.disabled;
-			setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
-			this.#events();
+			try {
+				this.#selector = this.options.handle ? `:is(${this.options.items}) :is(${this.options.handle})` : this.options.items;
+				this.#dragging = false;
+				this.#enabled = !this.options.disabled;
+				this.#initialCursorNodes = _fr0st_query.default.find(this.#selector, this.node);
+				setCursor(this.#initialCursorNodes, this.options.cursor);
+				this.#events();
+				this.#initialCursorNodes = null;
+			} catch (error) {
+				this.dispose();
+				throw error;
+			}
 		}
 		/**
 		* Disables the Sortable.
@@ -156,7 +164,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.node) return;
 			_fr0st_query.default.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
 			_fr0st_query.default.removeEvent(this.node, "receive.ui.sortable");
-			resetCursor(_fr0st_query.default.find(this.#selector, this.node));
+			resetCursor(this.#initialCursorNodes ?? _fr0st_query.default.find(this.#selector, this.node));
+			this.#initialCursorNodes = [];
 			if (this.#target && this.options.helperClass) _fr0st_query.default.removeClass(this.#target, this.options.helperClass);
 			this.#resetDrag();
 			super.dispose();
