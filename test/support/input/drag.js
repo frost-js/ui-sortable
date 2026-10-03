@@ -1,12 +1,12 @@
 /** @import { Page } from '@playwright/test'; */
-
 /**
- * Drag one element to a position within another element.
- * @param {Page} page The Playwright page.
- * @param {string} sourceSelector The source selector.
- * @param {string} destinationSelector The destination selector.
- * @param {{x?: number, y?: number}} [position] The destination ratios.
- * @returns {Promise<void>} The promise.
+ * Drags an item to a position within the destination element.
+ * @param {Page} page The test page.
+ * @param {string} sourceSelector The source item selector.
+ * @param {string} destinationSelector The destination element selector.
+ * @param {object} [options] The destination position options.
+ * @param {number} [options.x=.5] The horizontal position as a fraction of the destination.
+ * @param {number} [options.y=.5] The vertical position as a fraction of the destination.
  */
 export async function drag(page, sourceSelector, destinationSelector, { x = 0.5, y = 0.5 } = {}) {
     const sourceBox = await page.locator(sourceSelector).boundingBox();

@@ -1,21 +1,22 @@
 import { expect, test } from '#test';
-import { drag } from '../support/drag.js';
+import { drag } from '../support/input/drag.js';
 
 test.describe('Sortable', () => {
     test.beforeEach(async ({ page }) => {
-        await page.evaluate((_) => {
-            document.body.innerHTML =
+        await page.evaluate(() => {
+            $.setHtml(document.body,
                 '<ul class="list-group" id="list" style="width: 240px">' +
                 '<li class="list-group-item" id="one">One</li>' +
                 '<li class="list-group-item" id="two">Two</li>' +
                 '<li class="list-group-item" id="three">Three</li>' +
-                '</ul>';
+                '</ul>',
+            );
         });
     });
 
     test.describe('#init', () => {
         for (const { name, init } of [
-            { name: 'class', init: () => UI.Sortable.init(document.querySelector('#list')) },
+            { name: 'class', init: () => UI.Sortable.init($.findOne('#list')) },
             { name: 'QuerySet', init: () => $('#list').sortable() },
         ]) {
             test(`creates and registers a Sortable (${name})`, async ({ page }) => {
@@ -27,10 +28,11 @@ test.describe('Sortable', () => {
         }
 
         test('creates multiple Sortables (QuerySet)', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                document.body.innerHTML =
+            expect(await page.evaluate(() => {
+                $.setHtml(document.body,
                     '<ul class="sortable" id="one-list"><li>One</li></ul>' +
-                    '<ul class="sortable" id="two-list"><li>Two</li></ul>';
+                    '<ul class="sortable" id="two-list"><li>Two</li></ul>',
+                );
                 $('.sortable').sortable();
 
                 return ['#one-list', '#two-list'].map((selector) =>
@@ -39,10 +41,11 @@ test.describe('Sortable', () => {
         });
 
         test('returns the first Sortable (QuerySet)', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                document.body.innerHTML =
+            expect(await page.evaluate(() => {
+                $.setHtml(document.body,
                     '<ul class="sortable" id="one-list"><li>One</li></ul>' +
-                    '<ul class="sortable" id="two-list"><li>Two</li></ul>';
+                    '<ul class="sortable" id="two-list"><li>Two</li></ul>',
+                );
                 const instance = $('.sortable').sortable();
 
                 return instance === $.getData('#one-list', 'sortable');
@@ -50,8 +53,8 @@ test.describe('Sortable', () => {
         });
 
         test('reuses an existing Sortable without changing options', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const list = document.querySelector('#list');
+            expect(await page.evaluate(() => {
+                const list = $.findOne('#list');
                 const first = UI.Sortable.init(list, { cursor: 'grab' });
                 const second = UI.Sortable.init(list, { cursor: 'copy' });
 
@@ -60,8 +63,8 @@ test.describe('Sortable', () => {
         });
 
         test('exposes frozen default options', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const sortable = UI.Sortable.init(document.querySelector('#list'));
+            expect(await page.evaluate(() => {
+                const sortable = UI.Sortable.init($.findOne('#list'));
 
                 return {
                     ...sortable.options,
@@ -86,10 +89,10 @@ test.describe('Sortable', () => {
         });
 
         test('uses data options', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const list = document.querySelector('#list');
-                list.dataset.uiAxis = 'x';
-                list.dataset.uiScrollSpeed = '12';
+            expect(await page.evaluate(() => {
+                const list = $.findOne('#list');
+                $.setDataset(list, 'uiAxis', 'x');
+                $.setDataset(list, 'uiScrollSpeed', 12);
                 const sortable = UI.Sortable.init(list);
 
                 return {
@@ -101,12 +104,12 @@ test.describe('Sortable', () => {
 
         test.describe('failed initialization', () => {
             test('rolls back an invalid item selector', async ({ page }) => {
-                await expect(page.evaluate((_) =>
+                await expect(page.evaluate(() =>
                     UI.Sortable.init($.findOne('#list'), { items: '[' }),
                 )).rejects.toThrow();
 
-                expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
-                expect(await page.evaluate((_) => {
+                expect(await page.evaluate(() => $.hasData('#list', 'sortable'))).toBe(false);
+                expect(await page.evaluate(() => {
                     const node = $.findOne('#list');
                     const instance = UI.Sortable.init(node);
                     return $.getData(node, 'sortable') === instance;
@@ -114,24 +117,24 @@ test.describe('Sortable', () => {
             });
 
             test('rolls back a partial cursor lock without releasing another owner', async ({ page }) => {
-                await page.evaluate((_) => {
+                await page.evaluate(() => {
                     $.setStyle('#one', { cursor: 'pointer' });
                     $.setStyle('#two', { cursor: 'crosshair' });
                 });
-                const held = await page.evaluateHandle((_) => $.setStyleLock('#two', 'cursor', 'wait'));
+                const held = await page.evaluateHandle(() => $.setStyleLock('#two', 'cursor', 'wait'));
 
-                await expect(page.evaluate((_) => UI.Sortable.init($.findOne('#list'))))
+                await expect(page.evaluate(() => UI.Sortable.init($.findOne('#list'))))
                     .rejects.toThrow('CSS property "cursor" is already locked.');
 
-                expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
-                expect(await page.locator('#one').evaluate((node) => node.style.cursor)).toBe('pointer');
-                expect(await page.locator('#two').evaluate((node) => node.style.cursor)).toBe('wait');
+                expect(await page.evaluate(() => $.hasData('#list', 'sortable'))).toBe(false);
+                expect(await page.locator('#one').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('pointer');
+                expect(await page.locator('#two').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('wait');
 
                 await held.evaluate((release) => release());
-                await page.evaluate((_) => UI.Sortable.init($.findOne('#list')).dispose());
+                await page.evaluate(() => UI.Sortable.init($.findOne('#list')).dispose());
 
-                expect(await page.locator('#one').evaluate((node) => node.style.cursor)).toBe('pointer');
-                expect(await page.locator('#two').evaluate((node) => node.style.cursor)).toBe('crosshair');
+                expect(await page.locator('#one').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('pointer');
+                expect(await page.locator('#two').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('crosshair');
             });
         });
     });
@@ -143,7 +146,7 @@ test.describe('Sortable', () => {
         ]) {
             test(`removes the Sortable (${name})`, async ({ page }) => {
                 const instance = await page.evaluateHandle(() =>
-                    UI.Sortable.init(document.querySelector('#list')),
+                    UI.Sortable.init($.findOne('#list')),
                 );
                 await page.evaluate(dispose, instance);
 
@@ -156,8 +159,8 @@ test.describe('Sortable', () => {
         }
 
         test('can be called multiple times', async ({ page }) => {
-            await page.evaluate((_) => {
-                const sortable = UI.Sortable.init(document.querySelector('#list'));
+            await page.evaluate(() => {
+                const sortable = UI.Sortable.init($.findOne('#list'));
 
                 sortable.dispose();
                 sortable.dispose();
@@ -168,8 +171,8 @@ test.describe('Sortable', () => {
         });
 
         test('removes the Sortable when its node is removed', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                const list = document.querySelector('#list');
+            expect(await page.evaluate(() => {
+                const list = $.findOne('#list');
                 const sortable = UI.Sortable.init(list);
                 $.remove(list);
 
@@ -187,16 +190,16 @@ test.describe('Sortable', () => {
             const errors = [];
             page.on('pageerror', (error) => errors.push(error.message));
 
-            await page.evaluate((_) => {
-                const list = document.querySelector('#list');
+            await page.evaluate(() => {
+                const list = $.findOne('#list');
                 const sortable = UI.Sortable.init(list);
-                $.addEvent(list, 'sort.ui.sortable', (_) => sortable.dispose());
+                $.addEvent(list, 'sort.ui.sortable', () => sortable.dispose());
             });
 
             await drag(page, '#one', '#three', { y: 0.8 });
 
             expect(errors).toEqual([]);
-            expect(await page.evaluate((_) => $.hasData('#list', 'sortable'))).toBe(false);
+            expect(await page.evaluate(() => $.hasData('#list', 'sortable'))).toBe(false);
             await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
             await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
         });
@@ -210,7 +213,7 @@ test.describe('Sortable', () => {
             ]) {
                 test(`${method}s sorting (${name})`, async ({ page }) => {
                     await page.evaluate((method) => {
-                        UI.Sortable.init(document.querySelector('#list'), {
+                        UI.Sortable.init($.findOne('#list'), {
                             disabled: method === 'enable',
                         });
                     }, method);
@@ -238,21 +241,22 @@ test.describe('Sortable', () => {
             },
         ]) {
             test(`gets the Sortable items (${name})`, async ({ page }) => {
-                await page.evaluate(() => UI.Sortable.init(document.querySelector('#list')));
+                await page.evaluate(() => UI.Sortable.init($.findOne('#list')));
 
                 expect(await page.evaluate(items)).toEqual(['one', 'two', 'three']);
             });
         }
 
         test('gets custom Sortable items', async ({ page }) => {
-            expect(await page.evaluate((_) => {
-                document.body.innerHTML =
+            expect(await page.evaluate(() => {
+                $.setHtml(document.body,
                     '<div id="list">' +
                     '<div class="item" id="one">One</div>' +
                     '<div id="ignored">Ignored</div>' +
                     '<div class="item" id="two">Two</div>' +
-                    '</div>';
-                const sortable = UI.Sortable.init(document.querySelector('#list'), {
+                    '</div>',
+                );
+                const sortable = UI.Sortable.init($.findOne('#list'), {
                     items: ':scope > .item',
                 });
 
@@ -263,9 +267,9 @@ test.describe('Sortable', () => {
 
     test.describe('events', () => {
         test('triggers sorting lifecycle events in order', async ({ page }) => {
-            await page.evaluate((_) => {
+            await page.evaluate(() => {
                 window.sortableEvents = [];
-                const list = document.querySelector('#list');
+                const list = $.findOne('#list');
 
                 $.addEvent(
                     list,
@@ -274,12 +278,12 @@ test.describe('Sortable', () => {
                         window.sortableEvents.push({
                             detailItem: event.detail.item.id,
                             detailTarget: event.detail.target.id,
-                            from: event.from.id,
-                            item: event.item.id,
+                            from: $.getProperty(event.from, 'id'),
+                            item: $.getProperty(event.item, 'id'),
                             namespace: event.namespace,
                             newIndex: event.newIndex,
                             oldIndex: event.oldIndex,
-                            to: event.to.id,
+                            to: $.getProperty(event.to, 'id'),
                             type: event.type,
                         });
                     },
@@ -290,7 +294,7 @@ test.describe('Sortable', () => {
 
             await drag(page, '#one', '#three', { y: 0.8 });
 
-            expect(await page.evaluate((_) => window.sortableEvents)).toEqual([
+            expect(await page.evaluate(() => window.sortableEvents)).toEqual([
                 {
                     detailItem: 'one',
                     detailTarget: 'one',
@@ -352,8 +356,8 @@ test.describe('Sortable', () => {
 
     test.describe('sorting', () => {
         test('sorts items', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init(document.querySelector('#list'));
+            await page.evaluate(() => {
+                UI.Sortable.init($.findOne('#list'));
             });
 
             await drag(page, '#one', '#three', { y: 0.8 });
@@ -364,23 +368,23 @@ test.describe('Sortable', () => {
         });
 
         test('does not start a sort for a click', async ({ page }) => {
-            await page.evaluate((_) => {
+            await page.evaluate(() => {
                 window.sortCount = 0;
-                $.addEvent('#list', 'sort.ui.sortable', (_) => window.sortCount++);
-                UI.Sortable.init(document.querySelector('#list'));
+                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
+                UI.Sortable.init($.findOne('#list'));
             });
 
             await page.locator('#one').click();
 
             await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-            expect(await page.evaluate((_) => window.sortCount)).toBe(0);
+            expect(await page.evaluate(() => window.sortCount)).toBe(0);
         });
 
         test('does not start a sort with the right mouse button', async ({ page }) => {
-            await page.evaluate((_) => {
+            await page.evaluate(() => {
                 window.sortCount = 0;
-                $.addEvent('#list', 'sort.ui.sortable', (_) => window.sortCount++);
-                UI.Sortable.init(document.querySelector('#list'));
+                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
+                UI.Sortable.init($.findOne('#list'));
             });
 
             const oneBox = await page.locator('#one').boundingBox();
@@ -395,15 +399,15 @@ test.describe('Sortable', () => {
             await page.mouse.up({ button: 'right' });
 
             await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-            expect(await page.evaluate((_) => window.sortCount)).toBe(0);
+            expect(await page.evaluate(() => window.sortCount)).toBe(0);
         });
     });
 
     test.describe('axis option', () => {
         test('sorts horizontally', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#list').classList.add('list-group-horizontal');
-                UI.Sortable.init(document.querySelector('#list'), { axis: 'x' });
+            await page.evaluate(() => {
+                $.addClass($.findOne('#list'), 'list-group-horizontal');
+                UI.Sortable.init($.findOne('#list'), { axis: 'x' });
             });
 
             await drag(page, '#one', '#three', { x: 0.8 });
@@ -453,10 +457,10 @@ test.describe('Sortable', () => {
         ]) {
             test(`${allowed ? 'sorts' : 'does not sort'} from ${name}`, async ({ page }) => {
                 await page.evaluate(({ markup, options }) => {
-                    document.querySelector('#one').innerHTML = markup;
+                    $.setHtml($.findOne('#one'), markup);
                     window.sortCount = 0;
                     $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
-                    UI.Sortable.init(document.querySelector('#list'), options);
+                    UI.Sortable.init($.findOne('#list'), options);
                 }, { markup, options });
 
                 await drag(page, '#start', '#three', { y: 0.8 });
@@ -471,8 +475,8 @@ test.describe('Sortable', () => {
 
     test.describe('cursor option', () => {
         test('styles the Sortable items', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init(document.querySelector('#list'), { cursor: 'grab' });
+            await page.evaluate(() => {
+                UI.Sortable.init($.findOne('#list'), { cursor: 'grab' });
             });
 
             const items = page.locator('#list > li');
@@ -490,9 +494,9 @@ test.describe('Sortable', () => {
             test(`restores ${name} cursors and releases locks on disposal`, async ({ page }) => {
                 const original = { value, priority };
                 const instance = await page.evaluateHandle(({ value, priority }) => {
-                    document.querySelector('#one').style.setProperty('cursor', value, priority);
+                    $.findOne('#one').style.setProperty('cursor', value, priority);
 
-                    return UI.Sortable.init(document.querySelector('#list'), { cursor: 'grab' });
+                    return UI.Sortable.init($.findOne('#list'), { cursor: 'grab' });
                 }, original);
 
                 await expect(page.locator('#one')).toHaveCSS('cursor', 'grab');
@@ -508,8 +512,8 @@ test.describe('Sortable', () => {
                     const release = $.setStyleLock(node, 'cursor', 'help');
                     release();
                 });
-                await page.evaluate((_) => {
-                    UI.Sortable.init(document.querySelector('#list'), { cursor: 'copy' });
+                await page.evaluate(() => {
+                    UI.Sortable.init($.findOne('#list'), { cursor: 'copy' });
                 });
 
                 await expect(page.locator('#one')).toHaveCSS('cursor', 'copy');
@@ -525,14 +529,14 @@ test.describe('Sortable', () => {
 
     test.describe('handle option', () => {
         test('sorts only from the configured handle', async ({ page }) => {
-            await page.evaluate((_) => {
-                for (const node of document.querySelectorAll('#list > li')) {
-                    const handle = document.createElement('span');
-                    handle.className = 'handle float-end';
-                    handle.textContent = 'Handle';
-                    node.append(handle);
+            await page.evaluate(() => {
+                for (const node of $.find('#list > li')) {
+                    const handle = $.create('span');
+                    $.setAttribute(handle, 'class', 'handle float-end');
+                    $.setText(handle, 'Handle');
+                    $.append(node, handle);
                 }
-                UI.Sortable.init(document.querySelector('#list'), {
+                UI.Sortable.init($.findOne('#list'), {
                     cursor: 'grab',
                     handle: '.handle',
                 });
@@ -549,13 +553,13 @@ test.describe('Sortable', () => {
             for (const handleClass of ['handle', 'grip']) {
                 test(`supports grouped selectors (${itemClass}, ${handleClass})`, async ({ page }) => {
                     await page.evaluate(({ itemClass, handleClass }) => {
-                        const one = document.querySelector('#one');
-                        one.classList.add(itemClass);
-                        one.innerHTML = '<span id="start" class="' + handleClass + '">One</span>';
-                        document.querySelector('#two').classList.add('a');
-                        document.querySelector('#three').classList.add('b');
+                        const one = $.findOne('#one');
+                        $.addClass(one, itemClass);
+                        $.setHtml(one, '<span id="start" class="' + handleClass + '">One</span>');
+                        $.addClass($.findOne('#two'), 'a');
+                        $.addClass($.findOne('#three'), 'b');
 
-                        UI.Sortable.init(document.querySelector('#list'), {
+                        UI.Sortable.init($.findOne('#list'), {
                             items: ':scope > .a, :scope > .b',
                             handle: '.handle, .grip',
                             cursor: 'grab',
@@ -573,9 +577,9 @@ test.describe('Sortable', () => {
 
     test.describe('helperClass option', () => {
         test('adds helper classes while sorting', async ({ page }) => {
-            await page.evaluate((_) => {
-                document.querySelector('#one').classList.add('existing');
-                UI.Sortable.init(document.querySelector('#list'), {
+            await page.evaluate(() => {
+                $.addClass($.findOne('#one'), 'existing');
+                UI.Sortable.init($.findOne('#list'), {
                     helperClass: 'active extra',
                 });
             });
@@ -641,8 +645,8 @@ test.describe('Sortable', () => {
         ]) {
             test(`uses the ${name}`, async ({ page }) => {
                 await page.evaluate(({ options, order }) => {
-                    const list = document.querySelector('#list');
-                    list.replaceChildren(...order.map((id) => document.getElementById(id)));
+                    const list = $.findOne('#list');
+                    $.append(list, order.map((id) => $.findOneById(id)));
                     UI.Sortable.init(list, options);
                 }, { options, order });
 

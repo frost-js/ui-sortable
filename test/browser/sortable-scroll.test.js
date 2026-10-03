@@ -5,32 +5,32 @@ test.describe('Sortable scrolling', () => {
         await page.clock.install({ time: 0 });
         await page.clock.pauseAt(60000);
 
-        await page.evaluate((_) => {
-            document.body.style.width = '1600px';
-            document.body.style.height = '2600px';
-            const list = document.createElement('ul');
-            list.id = 'list';
-            list.className = 'list-group';
-            list.style.width = '240px';
+        await page.evaluate(() => {
+            $.setStyle(document.body, 'width', '1600px');
+            $.setStyle(document.body, 'height', '2600px');
+            const list = $.create('ul');
+            $.setProperty(list, 'id', 'list');
+            $.setAttribute(list, 'class', 'list-group');
+            $.setStyle(list, 'width', '240px');
 
             for (let index = 0; index < 40; index++) {
-                const item = document.createElement('li');
-                item.id = 'item-' + index;
-                item.className = 'list-group-item';
-                item.style.height = '50px';
-                item.textContent = 'Item ' + index;
-                list.append(item);
+                const item = $.create('li');
+                $.setProperty(item, 'id', 'item-' + index);
+                $.setAttribute(item, 'class', 'list-group-item');
+                $.setStyle(item, 'height', '50px');
+                $.setText(item, 'Item ' + index);
+                $.append(list, item);
             }
 
-            document.body.append(list);
+            $.append(document.body, list);
         });
     });
 
     for (const behavior of ['', 'smooth']) {
         test(`scrolls instantly without changing ${behavior || 'unset'} scroll-behavior`, async ({ page }) => {
             await page.evaluate((behavior) => {
-                document.documentElement.style.scrollBehavior = behavior;
-                UI.Sortable.init(document.querySelector('#list'), {
+                $.setStyle(document.documentElement, 'scrollBehavior', behavior);
+                UI.Sortable.init($.findOne('#list'), {
                     scrollSensitivity: 60,
                     scrollSpeed: 30,
                 });
@@ -46,19 +46,19 @@ test.describe('Sortable scrolling', () => {
             expect(position.y).toBeGreaterThan(0);
             expect(position.x % 30).toBe(0);
             expect(position.y % 30).toBe(0);
-            expect(await page.evaluate(() => document.documentElement.style.scrollBehavior)).toBe(behavior);
+            expect(await page.evaluate(() => $.getStyle(document.documentElement, 'scrollBehavior'))).toBe(behavior);
 
             await page.mouse.up();
             await page.clock.runFor(100);
 
             expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual(position);
-            expect(await page.evaluate(() => document.documentElement.style.scrollBehavior)).toBe(behavior);
+            expect(await page.evaluate(() => $.getStyle(document.documentElement, 'scrollBehavior'))).toBe(behavior);
         });
     }
 
     test('does not scroll when disabled', async ({ page }) => {
-        await page.evaluate((_) => {
-            UI.Sortable.init(document.querySelector('#list'), { scroll: false });
+        await page.evaluate(() => {
+            UI.Sortable.init($.findOne('#list'), { scroll: false });
         });
 
         await page.mouse.move(120, 25);
@@ -71,19 +71,19 @@ test.describe('Sortable scrolling', () => {
     });
 
     test('updates placement and events while the pointer stays at the edge', async ({ page }) => {
-        await page.evaluate((_) => {
+        await page.evaluate(() => {
             window.sortableEvents = [];
             $.addEvent('#list', 'sorting.ui.sortable sorted.ui.sortable update.ui.sortable', (event) => {
                 window.sortableEvents.push({
                     type: event.type,
-                    item: event.item.id,
-                    from: event.from.id,
-                    to: event.to.id,
+                    item: $.getProperty(event.item, 'id'),
+                    from: $.getProperty(event.from, 'id'),
+                    to: $.getProperty(event.to, 'id'),
                     oldIndex: event.oldIndex,
                     newIndex: event.newIndex,
                 });
             });
-            UI.Sortable.init(document.querySelector('#list'), {
+            UI.Sortable.init($.findOne('#list'), {
                 scrollSensitivity: 60,
                 scrollSpeed: 30,
             });
@@ -94,14 +94,14 @@ test.describe('Sortable scrolling', () => {
         await page.mouse.move(120, 590, { steps: 8 });
 
         const initial = await page.evaluate(() => ({
-            index: [...document.querySelector('#list').children].indexOf(document.querySelector('#item-0')),
+            index: [...$.findOne('#list').children].indexOf($.findOne('#item-0')),
             events: window.sortableEvents.length,
         }));
 
         await page.clock.runFor(320);
 
         const scrolled = await page.evaluate(() => ({
-            index: [...document.querySelector('#list').children].indexOf(document.querySelector('#item-0')),
+            index: [...$.findOne('#list').children].indexOf($.findOne('#item-0')),
             events: window.sortableEvents,
             y: window.scrollY,
         }));
@@ -143,15 +143,15 @@ test.describe('Sortable scrolling', () => {
 
         expect(await page.evaluate(() => window.scrollY)).toBe(scrolled.y);
         expect(await page.locator('#list').evaluate((list) =>
-            [...list.children].indexOf(document.querySelector('#item-0')),
+            [...list.children].indexOf($.findOne('#item-0')),
         )).toBe(scrolled.index);
     });
 
     test('stops scrolling and clears drag state when disposed during a drag', async ({ page }) => {
         const errors = [];
         page.on('pageerror', (error) => errors.push(error.message));
-        await page.evaluate((_) => {
-            UI.Sortable.init(document.querySelector('#list'), {
+        await page.evaluate(() => {
+            UI.Sortable.init($.findOne('#list'), {
                 scrollSensitivity: 60,
                 scrollSpeed: 30,
                 cursor: 'grab',
@@ -163,7 +163,7 @@ test.describe('Sortable scrolling', () => {
         await page.mouse.move(120, 590, { steps: 8 });
         await page.clock.runFor(64);
 
-        const position = await page.evaluate((_) => {
+        const position = await page.evaluate(() => {
             $.getData('#list', 'sortable').dispose();
             return window.scrollY;
         });
@@ -174,7 +174,7 @@ test.describe('Sortable scrolling', () => {
         expect(await page.evaluate(() => window.scrollY)).toBe(position);
         await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
         await expect(page.locator('#item-0')).not.toHaveClass(/bg-body-tertiary/);
-        expect(await page.locator('#item-0').evaluate((node) => node.style.cursor)).toBe('');
+        expect(await page.locator('#item-0').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('');
         await page.mouse.up();
         expect(errors).toEqual([]);
     });

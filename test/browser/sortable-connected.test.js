@@ -1,10 +1,10 @@
 import { expect, test } from '#test';
-import { drag } from '../support/drag.js';
+import { drag } from '../support/input/drag.js';
 
 test.describe('Sortable connected containers', () => {
     test.beforeEach(async ({ page }) => {
-        await page.evaluate((_) => {
-            document.body.innerHTML =
+        await page.evaluate(() => {
+            $.setHtml(document.body,
                 '<div class="d-flex gap-5">' +
                 '<ul class="connected list-group" id="source" style="min-height: 80px; width: 240px">' +
                 '<li class="list-group-item" id="one">One</li>' +
@@ -13,18 +13,19 @@ test.describe('Sortable connected containers', () => {
                 '<ul class="connected list-group" id="destination" style="min-height: 80px; width: 240px">' +
                 '<li class="list-group-item" id="three">Three</li>' +
                 '</ul>' +
-                '</div>';
+                '</div>',
+            );
         });
     });
 
     test.describe('transfers', () => {
         test('moves items between connected containers and applies the receiving cursor', async ({ page }) => {
-            await page.evaluate((_) => {
-                UI.Sortable.init(document.querySelector('#source'), {
+            await page.evaluate(() => {
+                UI.Sortable.init($.findOne('#source'), {
                     connectWith: '.connected',
                     cursor: 'grab',
                 });
-                UI.Sortable.init(document.querySelector('#destination'), {
+                UI.Sortable.init($.findOne('#destination'), {
                     connectWith: '.connected',
                     cursor: 'copy',
                 });
@@ -40,19 +41,19 @@ test.describe('Sortable connected containers', () => {
 
     test.describe('events', () => {
         test('triggers transfer events in order', async ({ page }) => {
-            await page.evaluate((_) => {
+            await page.evaluate(() => {
                 window.transferEvents = [];
                 $('.connected').addEvent(
                     'sort.ui.sortable send.ui.sortable receive.ui.sortable ' +
                     'sorted.ui.sortable update.ui.sortable',
                     (event) => {
                         window.transferEvents.push({
-                            currentTarget: event.currentTarget.id,
-                            from: event.from.id,
-                            item: event.item.id,
+                            currentTarget: $.getProperty(event.currentTarget, 'id'),
+                            from: $.getProperty(event.from, 'id'),
+                            item: $.getProperty(event.item, 'id'),
                             newIndex: event.newIndex,
                             oldIndex: event.oldIndex,
-                            to: event.to.id,
+                            to: $.getProperty(event.to, 'id'),
                             type: event.type,
                         });
                     },
@@ -62,7 +63,7 @@ test.describe('Sortable connected containers', () => {
 
             await drag(page, '#one', '#destination', { y: 0.95 });
 
-            expect(await page.evaluate((_) => window.transferEvents)).toEqual([
+            expect(await page.evaluate(() => window.transferEvents)).toEqual([
                 {
                     currentTarget: 'source',
                     from: 'source',
@@ -162,11 +163,11 @@ test.describe('Sortable connected containers', () => {
             test(`respects destination options (${name})`, async ({ page }) => {
                 await page.evaluate(({ empty, options }) => {
                     if (empty) {
-                        document.querySelector('#destination').replaceChildren();
+                        $.empty('#destination');
                     }
 
-                    UI.Sortable.init(document.querySelector('#source'), { connectWith: '.connected' });
-                    UI.Sortable.init(document.querySelector('#destination'), {
+                    UI.Sortable.init($.findOne('#source'), { connectWith: '.connected' });
+                    UI.Sortable.init($.findOne('#destination'), {
                         connectWith: '.connected',
                         ...options,
                     });
@@ -197,19 +198,19 @@ test.describe('Sortable connected containers', () => {
                     { value: 'move', priority: '' },
                 ];
                 await page.evaluate(({ sourceHandle, destinationHandle, original }) => {
-                    const one = document.querySelector('#one');
-                    one.innerHTML = '<span class="handle">One</span><span class="grip float-end">Grip</span>';
+                    const one = $.findOne('#one');
+                    $.setHtml(one, '<span class="handle">One</span><span class="grip float-end">Grip</span>');
                     const nodes = [one, ...one.children];
                     nodes.forEach((node, index) => {
                         node.style.setProperty('cursor', original[index].value, original[index].priority);
                     });
 
-                    UI.Sortable.init(document.querySelector('#source'), {
+                    UI.Sortable.init($.findOne('#source'), {
                         connectWith: '.connected',
                         cursor: 'grab',
                         handle: sourceHandle,
                     });
-                    UI.Sortable.init(document.querySelector('#destination'), {
+                    UI.Sortable.init($.findOne('#destination'), {
                         connectWith: '.connected',
                         cursor: 'copy',
                         handle: destinationHandle,
@@ -231,7 +232,7 @@ test.describe('Sortable connected containers', () => {
                 expect(await page.evaluate(() => window.sentCursors)).toEqual(original);
                 await expect(destinationTarget).toHaveCSS('cursor', 'copy');
 
-                await page.evaluate((_) => {
+                await page.evaluate(() => {
                     $.getData('#source', 'sortable').dispose();
                     $.getData('#destination', 'sortable').dispose();
                 });
@@ -250,7 +251,7 @@ test.describe('Sortable connected containers', () => {
                     }
                 });
                 await page.evaluate((handle) => {
-                    UI.Sortable.init(document.querySelector('#destination'), { handle, cursor: 'grab' });
+                    UI.Sortable.init($.findOne('#destination'), { handle, cursor: 'grab' });
                 }, destinationHandle);
 
                 await expect(destinationTarget).toHaveCSS('cursor', 'grab');
