@@ -192,16 +192,16 @@ export default class Sortable extends BaseComponent {
      * Attaches events for the Sortable.
      */
     #events() {
-        const downEvent = (e) => {
+        const downEvent = (event) => {
             const cancelled = this.options.cancel &&
                 (
-                    $.is(e.target, this.options.cancel) ||
-                    $.is(e.currentTarget, this.options.cancel) ||
-                    $.closest(e.target, this.options.cancel, this.node).length
+                    $.is(event.target, this.options.cancel) ||
+                    $.is(event.currentTarget, this.options.cancel) ||
+                    $.closest(event.target, this.options.cancel, this.node).length
                 );
 
             if (
-                e.button ||
+                event.button ||
                 !this.#enabled ||
                 cancelled ||
                 $.getDataset(this.node, 'uiDragging')
@@ -210,21 +210,21 @@ export default class Sortable extends BaseComponent {
             }
 
             this.#target = this.options.handle ?
-                this.items().find((node) => $.hasDescendent(node, e.currentTarget)) :
-                e.currentTarget;
+                this.items().find((node) => $.hasDescendent(node, event.currentTarget)) :
+                event.currentTarget;
 
             if (!this.#target) {
                 return false;
             }
         };
 
-        const moveEvent = (e) => {
+        const moveEvent = (event) => {
             if (!this.node || !this.#target) {
                 return;
             }
 
             const previousPos = this.#pos;
-            this.#pos = getPosition(e);
+            this.#pos = getPosition(event);
             const deltaX = previousPos ?
                 this.#pos.x - previousPos.x :
                 0;
@@ -264,7 +264,7 @@ export default class Sortable extends BaseComponent {
             this.#scheduleScroll();
         };
 
-        const upEvent = (e) => {
+        const upEvent = (event) => {
             if (!this.node) {
                 return;
             }
@@ -274,8 +274,8 @@ export default class Sortable extends BaseComponent {
                 return;
             }
 
-            if (e.type === 'mouseup') {
-                e.preventDefault();
+            if (event.type === 'mouseup') {
+                event.preventDefault();
             }
 
             const source = this.node;
@@ -323,7 +323,7 @@ export default class Sortable extends BaseComponent {
             dragEvent,
         );
 
-        $.addEvent(this.node, 'receive.ui.sortable', (_) => {
+        $.addEvent(this.node, 'receive.ui.sortable', () => {
             setCursor($.find(this.#selector, this.node), this.options.cursor);
         });
     }
@@ -362,7 +362,7 @@ export default class Sortable extends BaseComponent {
             return;
         }
 
-        this.#scrollFrame = window.requestAnimationFrame((_) => {
+        this.#scrollFrame = window.requestAnimationFrame(() => {
             this.#checkScroll();
         });
     }

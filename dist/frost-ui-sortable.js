@@ -224,16 +224,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches events for the Sortable.
 		*/
 		#events() {
-			const downEvent = (e) => {
-				const cancelled = this.options.cancel && (_fr0st_query.default.is(e.target, this.options.cancel) || _fr0st_query.default.is(e.currentTarget, this.options.cancel) || _fr0st_query.default.closest(e.target, this.options.cancel, this.node).length);
-				if (e.button || !this.#enabled || cancelled || _fr0st_query.default.getDataset(this.node, "uiDragging")) return false;
-				this.#target = this.options.handle ? this.items().find((node) => _fr0st_query.default.hasDescendent(node, e.currentTarget)) : e.currentTarget;
+			const downEvent = (event) => {
+				const cancelled = this.options.cancel && (_fr0st_query.default.is(event.target, this.options.cancel) || _fr0st_query.default.is(event.currentTarget, this.options.cancel) || _fr0st_query.default.closest(event.target, this.options.cancel, this.node).length);
+				if (event.button || !this.#enabled || cancelled || _fr0st_query.default.getDataset(this.node, "uiDragging")) return false;
+				this.#target = this.options.handle ? this.items().find((node) => _fr0st_query.default.hasDescendent(node, event.currentTarget)) : event.currentTarget;
 				if (!this.#target) return false;
 			};
-			const moveEvent = (e) => {
+			const moveEvent = (event) => {
 				if (!this.node || !this.#target) return;
 				const previousPos = this.#pos;
-				this.#pos = (0, _fr0st_ui.getPosition)(e);
+				this.#pos = (0, _fr0st_ui.getPosition)(event);
 				const deltaX = previousPos ? this.#pos.x - previousPos.x : 0;
 				const deltaY = previousPos ? this.#pos.y - previousPos.y : 0;
 				if (!this.#dragging) {
@@ -257,13 +257,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#updatePlacement(deltaX, deltaY);
 				this.#scheduleScroll();
 			};
-			const upEvent = (e) => {
+			const upEvent = (event) => {
 				if (!this.node) return;
 				if (!this.#dragging) {
 					this.#target = null;
 					return;
 				}
-				if (e.type === "mouseup") e.preventDefault();
+				if (event.type === "mouseup") event.preventDefault();
 				const source = this.node;
 				const destination = this.#currentSortable;
 				/** @type {SortableEventData} */
@@ -285,7 +285,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent);
 			_fr0st_query.default.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
-			_fr0st_query.default.addEvent(this.node, "receive.ui.sortable", (_) => {
+			_fr0st_query.default.addEvent(this.node, "receive.ui.sortable", () => {
 				setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
 			});
 		}
@@ -308,7 +308,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#scheduleScroll() {
 			if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null && this.#scrollFrame !== void 0) return;
-			this.#scrollFrame = window.requestAnimationFrame((_) => {
+			this.#scrollFrame = window.requestAnimationFrame(() => {
 				this.#checkScroll();
 			});
 		}

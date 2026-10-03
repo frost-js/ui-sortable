@@ -192,16 +192,16 @@ var Sortable = class extends BaseComponent {
 	* Attaches events for the Sortable.
 	*/
 	#events() {
-		const downEvent = (e) => {
-			const cancelled = this.options.cancel && ($.is(e.target, this.options.cancel) || $.is(e.currentTarget, this.options.cancel) || $.closest(e.target, this.options.cancel, this.node).length);
-			if (e.button || !this.#enabled || cancelled || $.getDataset(this.node, "uiDragging")) return false;
-			this.#target = this.options.handle ? this.items().find((node) => $.hasDescendent(node, e.currentTarget)) : e.currentTarget;
+		const downEvent = (event) => {
+			const cancelled = this.options.cancel && ($.is(event.target, this.options.cancel) || $.is(event.currentTarget, this.options.cancel) || $.closest(event.target, this.options.cancel, this.node).length);
+			if (event.button || !this.#enabled || cancelled || $.getDataset(this.node, "uiDragging")) return false;
+			this.#target = this.options.handle ? this.items().find((node) => $.hasDescendent(node, event.currentTarget)) : event.currentTarget;
 			if (!this.#target) return false;
 		};
-		const moveEvent = (e) => {
+		const moveEvent = (event) => {
 			if (!this.node || !this.#target) return;
 			const previousPos = this.#pos;
-			this.#pos = getPosition(e);
+			this.#pos = getPosition(event);
 			const deltaX = previousPos ? this.#pos.x - previousPos.x : 0;
 			const deltaY = previousPos ? this.#pos.y - previousPos.y : 0;
 			if (!this.#dragging) {
@@ -225,13 +225,13 @@ var Sortable = class extends BaseComponent {
 			this.#updatePlacement(deltaX, deltaY);
 			this.#scheduleScroll();
 		};
-		const upEvent = (e) => {
+		const upEvent = (event) => {
 			if (!this.node) return;
 			if (!this.#dragging) {
 				this.#target = null;
 				return;
 			}
-			if (e.type === "mouseup") e.preventDefault();
+			if (event.type === "mouseup") event.preventDefault();
 			const source = this.node;
 			const destination = this.#currentSortable;
 			/** @type {SortableEventData} */
@@ -253,7 +253,7 @@ var Sortable = class extends BaseComponent {
 		};
 		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
 		$.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
-		$.addEvent(this.node, "receive.ui.sortable", (_) => {
+		$.addEvent(this.node, "receive.ui.sortable", () => {
 			setCursor($.find(this.#selector, this.node), this.options.cursor);
 		});
 	}
@@ -276,7 +276,7 @@ var Sortable = class extends BaseComponent {
 	*/
 	#scheduleScroll() {
 		if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null && this.#scrollFrame !== void 0) return;
-		this.#scrollFrame = window.requestAnimationFrame((_) => {
+		this.#scrollFrame = window.requestAnimationFrame(() => {
 			this.#checkScroll();
 		});
 	}

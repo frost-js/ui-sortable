@@ -19,7 +19,7 @@ export function resetCursor(nodes) {
         release();
         cursorLocks.delete(node);
     }
-};
+}
 
 /**
  * Sets the cursor style for a collection of elements.
@@ -34,7 +34,7 @@ export function setCursor(nodes, cursor) {
             cursorLocks.set(node, $.setStyleLock(node, 'cursor', cursor));
         }
     }
-};
+}
 
 /**
  * Triggers a Sortable event with its data and detail payloads.
@@ -50,4 +50,4 @@ export function triggerSortableEvent(node, name, data) {
             ...data,
         },
     });
-};
+}
