@@ -1,6 +1,6 @@
 {
     "name": "@fr0st/ui-sortable",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "private": false,
     "description": "Drag-and-drop sortable lists for Frost UI with handles, connected containers, axis control, and automatic scrolling.",
     "keywords": [

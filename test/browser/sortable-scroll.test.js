@@ -56,39 +56,6 @@ test.describe('Sortable scrolling', () => {
         });
     }
 
-    test('stops auto-scrolling after touchcancel', async ({ page }) => {
-        await page.evaluate(async () => {
-            const item = $.findOne('#item-0');
-            const touch = { identifier: 1, target: item, pageX: 120, pageY: 25 };
-            UI.Sortable.init($.findOne('#list'), {
-                scrollSensitivity: 60,
-                scrollSpeed: 30,
-            });
-
-            $.triggerEvent(item, 'touchstart', { data: { touches: [touch] } });
-            $.triggerEvent(window, 'touchmove', {
-                data: { touches: [{ ...touch, pageX: 790, pageY: 590 }] },
-            });
-            await Promise.resolve();
-        });
-        await page.clock.runFor(32);
-        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-
-        await page.evaluate(async () => {
-            $.triggerEvent(window, 'touchcancel', { data: { touches: [] } });
-            await Promise.resolve();
-        });
-        const position = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
-        const order = await page.locator('#list > li').allTextContents();
-
-        await page.clock.runFor(320);
-
-        expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual(position);
-        await expect(page.locator('#list > li')).toHaveText(order);
-        await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
-        await expect(page.locator('#item-0')).not.toHaveClass(/bg-body-tertiary/);
-    });
-
     test('does not scroll when disabled', async ({ page }) => {
         await page.evaluate(() => {
             UI.Sortable.init($.findOne('#list'), { scroll: false });
@@ -178,6 +145,39 @@ test.describe('Sortable scrolling', () => {
         expect(await page.locator('#list').evaluate((list) =>
             $.children(list).indexOf($.findOne('#item-0')),
         )).toBe(scrolled.index);
+    });
+
+    test('stops auto-scrolling after touchcancel', async ({ page }) => {
+        await page.evaluate(async () => {
+            const item = $.findOne('#item-0');
+            const touch = { identifier: 1, target: item, pageX: 120, pageY: 25 };
+            UI.Sortable.init($.findOne('#list'), {
+                scrollSensitivity: 60,
+                scrollSpeed: 30,
+            });
+
+            $.triggerEvent(item, 'touchstart', { data: { touches: [touch] } });
+            $.triggerEvent(window, 'touchmove', {
+                data: { touches: [{ ...touch, pageX: 790, pageY: 590 }] },
+            });
+            await Promise.resolve();
+        });
+        await page.clock.runFor(32);
+        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+        await page.evaluate(async () => {
+            $.triggerEvent(window, 'touchcancel', { data: { touches: [] } });
+            await Promise.resolve();
+        });
+        const position = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+        const order = await page.locator('#list > li').allTextContents();
+
+        await page.clock.runFor(320);
+
+        expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual(position);
+        await expect(page.locator('#list > li')).toHaveText(order);
+        await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
+        await expect(page.locator('#item-0')).not.toHaveClass(/bg-body-tertiary/);
     });
 
     test('stops scrolling and clears drag state when disposed during a drag', async ({ page }) => {

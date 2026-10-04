@@ -354,6 +354,55 @@ test.describe('Sortable', () => {
         });
     });
 
+    test.describe('sorting', () => {
+        test('sorts items', async ({ page }) => {
+            await page.evaluate(() => {
+                UI.Sortable.init($.findOne('#list'));
+            });
+
+            await drag(page, '#one', '#three', { y: 0.8 });
+
+            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
+            await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
+            await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
+        });
+
+        test('does not start a sort for a click', async ({ page }) => {
+            await page.evaluate(() => {
+                window.sortCount = 0;
+                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
+                UI.Sortable.init($.findOne('#list'));
+            });
+
+            await page.locator('#one').click();
+
+            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
+            expect(await page.evaluate(() => window.sortCount)).toBe(0);
+        });
+
+        test('does not start a sort with the right mouse button', async ({ page }) => {
+            await page.evaluate(() => {
+                window.sortCount = 0;
+                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
+                UI.Sortable.init($.findOne('#list'));
+            });
+
+            const oneBox = await page.locator('#one').boundingBox();
+            const threeBox = await page.locator('#three').boundingBox();
+            if (!oneBox || !threeBox) {
+                throw new Error('Could not measure right-button drag elements.');
+            }
+
+            await page.mouse.move(oneBox.x + 10, oneBox.y + 10);
+            await page.mouse.down({ button: 'right' });
+            await page.mouse.move(threeBox.x + 10, threeBox.y + 10);
+            await page.mouse.up({ button: 'right' });
+
+            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
+            expect(await page.evaluate(() => window.sortCount)).toBe(0);
+        });
+    });
+
     test.describe('touch cancellation', () => {
         for (const { name, move, remainingTouch } of [
             { name: 'before movement', move: false, remainingTouch: false },
@@ -417,55 +466,6 @@ test.describe('Sortable', () => {
                 await expect(page.locator('#list > li')).toHaveText(move ? ['One', 'Two', 'Three'] : ['Two', 'Three', 'One']);
             });
         }
-    });
-
-    test.describe('sorting', () => {
-        test('sorts items', async ({ page }) => {
-            await page.evaluate(() => {
-                UI.Sortable.init($.findOne('#list'));
-            });
-
-            await drag(page, '#one', '#three', { y: 0.8 });
-
-            await expect(page.locator('#list > li')).toHaveText(['Two', 'Three', 'One']);
-            await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
-            await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
-        });
-
-        test('does not start a sort for a click', async ({ page }) => {
-            await page.evaluate(() => {
-                window.sortCount = 0;
-                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
-                UI.Sortable.init($.findOne('#list'));
-            });
-
-            await page.locator('#one').click();
-
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-            expect(await page.evaluate(() => window.sortCount)).toBe(0);
-        });
-
-        test('does not start a sort with the right mouse button', async ({ page }) => {
-            await page.evaluate(() => {
-                window.sortCount = 0;
-                $.addEvent('#list', 'sort.ui.sortable', () => window.sortCount++);
-                UI.Sortable.init($.findOne('#list'));
-            });
-
-            const oneBox = await page.locator('#one').boundingBox();
-            const threeBox = await page.locator('#three').boundingBox();
-            if (!oneBox || !threeBox) {
-                throw new Error('Could not measure right-button drag elements.');
-            }
-
-            await page.mouse.move(oneBox.x + 10, oneBox.y + 10);
-            await page.mouse.down({ button: 'right' });
-            await page.mouse.move(threeBox.x + 10, threeBox.y + 10);
-            await page.mouse.up({ button: 'right' });
-
-            await expect(page.locator('#list > li')).toHaveText(['One', 'Two', 'Three']);
-            expect(await page.evaluate(() => window.sortCount)).toBe(0);
-        });
     });
 
     test.describe('axis option', () => {
