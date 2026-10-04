@@ -108,13 +108,14 @@ export default class Sortable extends BaseComponent {
         $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
         $.removeEvent(this.node, 'receive.ui.sortable');
         resetCursor(this.#initialCursorNodes ?? $.find(this.#selector, this.node));
-        this.#initialCursorNodes = [];
 
         if (this.#target && this.options.helperClass) {
             $.removeClass(this.#target, this.options.helperClass);
         }
 
         this.#resetDrag();
+
+        this.#initialCursorNodes = null;
 
         super.dispose();
     }

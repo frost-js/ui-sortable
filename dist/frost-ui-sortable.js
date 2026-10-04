@@ -165,9 +165,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
 			_fr0st_query.default.removeEvent(this.node, "receive.ui.sortable");
 			resetCursor(this.#initialCursorNodes ?? _fr0st_query.default.find(this.#selector, this.node));
-			this.#initialCursorNodes = [];
 			if (this.#target && this.options.helperClass) _fr0st_query.default.removeClass(this.#target, this.options.helperClass);
 			this.#resetDrag();
+			this.#initialCursorNodes = null;
 			super.dispose();
 		}
 		/**

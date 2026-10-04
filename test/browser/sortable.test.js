@@ -354,6 +354,71 @@ test.describe('Sortable', () => {
         });
     });
 
+    test.describe('touch cancellation', () => {
+        for (const { name, move, remainingTouch } of [
+            { name: 'before movement', move: false, remainingTouch: false },
+            { name: 'after reordering', move: true, remainingTouch: false },
+            { name: 'with another touch still active', move: true, remainingTouch: true },
+        ]) {
+            test(`cleans up touchcancel ${name} and allows another drag`, async ({ page }) => {
+                const result = await page.evaluate(async ({ move, remainingTouch }) => {
+                    const one = $.findOne('#one');
+                    const start = $.center(one, { offset: true });
+                    const destination = $.rect('#three', { offset: true });
+                    const touch = { identifier: 1, target: one, pageX: start.x, pageY: start.y };
+                    const movedTouch = {
+                        ...touch,
+                        pageX: destination.left + destination.width / 2,
+                        pageY: destination.top + destination.height * 0.8,
+                    };
+                    const events = [];
+                    $.addEvent('#list', 'sort.ui.sortable sorting.ui.sortable sorted.ui.sortable update.ui.sortable', (event) => {
+                        events.push({ type: event.type, oldIndex: event.oldIndex, newIndex: event.newIndex });
+                    });
+                    UI.Sortable.init($.findOne('#list'), { scroll: false });
+
+                    $.triggerEvent(one, 'touchstart', { data: { touches: [touch] } });
+                    if (move) {
+                        $.triggerEvent(window, 'touchmove', { data: { touches: [movedTouch] } });
+                        await Promise.resolve();
+                    }
+
+                    const active = $.hasDataset('#list', 'uiDragging');
+                    $.triggerEvent(window, 'touchcancel', {
+                        data: {
+                            touches: remainingTouch ? [{ ...touch, identifier: 2 }] : [],
+                            changedTouches: [movedTouch],
+                        },
+                    });
+                    await Promise.resolve();
+                    const completed = events.slice();
+
+                    // Cancelled gestures must no longer react to move or end events.
+                    $.triggerEvent(window, 'touchmove', { data: { touches: [touch] } });
+                    $.triggerEvent(window, 'touchend', { data: { touches: [] } });
+                    await Promise.resolve();
+
+                    return { active, completed, events };
+                }, { move, remainingTouch });
+
+                expect(result.active).toBe(move);
+                expect(result.events).toEqual(result.completed);
+                expect(result.completed).toEqual(move ? [
+                    { type: 'sort', oldIndex: 0, newIndex: 0 },
+                    { type: 'sorting', oldIndex: 0, newIndex: 2 },
+                    { type: 'sorted', oldIndex: 0, newIndex: 2 },
+                    { type: 'update', oldIndex: 0, newIndex: 2 },
+                ] : []);
+                await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
+                await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
+                await expect(page.locator('#list > li')).toHaveText(move ? ['Two', 'Three', 'One'] : ['One', 'Two', 'Three']);
+
+                await drag(page, '#one', move ? '#two' : '#three', { y: move ? 0.1 : 0.8 });
+                await expect(page.locator('#list > li')).toHaveText(move ? ['One', 'Two', 'Three'] : ['Two', 'Three', 'One']);
+            });
+        }
+    });
+
     test.describe('sorting', () => {
         test('sorts items', async ({ page }) => {
             await page.evaluate(() => {
