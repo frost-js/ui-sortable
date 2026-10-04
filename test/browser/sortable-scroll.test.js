@@ -94,14 +94,14 @@ test.describe('Sortable scrolling', () => {
         await page.mouse.move(120, 590, { steps: 8 });
 
         const initial = await page.evaluate(() => ({
-            index: [...$.findOne('#list').children].indexOf($.findOne('#item-0')),
+            index: $.children('#list').indexOf($.findOne('#item-0')),
             events: window.sortableEvents.length,
         }));
 
         await page.clock.runFor(320);
 
         const scrolled = await page.evaluate(() => ({
-            index: [...$.findOne('#list').children].indexOf($.findOne('#item-0')),
+            index: $.children('#list').indexOf($.findOne('#item-0')),
             events: window.sortableEvents,
             y: window.scrollY,
         }));
@@ -143,7 +143,7 @@ test.describe('Sortable scrolling', () => {
 
         expect(await page.evaluate(() => window.scrollY)).toBe(scrolled.y);
         expect(await page.locator('#list').evaluate((list) =>
-            [...list.children].indexOf($.findOne('#item-0')),
+            $.children(list).indexOf($.findOne('#item-0')),
         )).toBe(scrolled.index);
     });
 

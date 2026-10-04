@@ -177,7 +177,7 @@ test.describe('Sortable connected containers', () => {
 
                 // A rejected transfer may still reorder items within the source.
                 expect(await page.locator('#source > li').evaluateAll((nodes) =>
-                    nodes.map((node) => node.id).sort(),
+                    nodes.map((node) => $.getProperty(node, 'id')).sort(),
                 )).toEqual(expectedSource);
                 await expect(page.locator('#destination > li')).toHaveText(expectedDestination);
             });
@@ -200,9 +200,11 @@ test.describe('Sortable connected containers', () => {
                 await page.evaluate(({ sourceHandle, destinationHandle, original }) => {
                     const one = $.findOne('#one');
                     $.setHtml(one, '<span class="handle">One</span><span class="grip float-end">Grip</span>');
-                    const nodes = [one, ...one.children];
+                    const nodes = [one, ...$.children(one)];
                     nodes.forEach((node, index) => {
-                        node.style.setProperty('cursor', original[index].value, original[index].priority);
+                        $.setStyle(node, 'cursor', original[index].value, {
+                            important: original[index].priority === 'important',
+                        });
                     });
 
                     UI.Sortable.init($.findOne('#source'), {
@@ -218,7 +220,7 @@ test.describe('Sortable connected containers', () => {
 
                     $.addEvent('#source', 'send.ui.sortable', () => {
                         window.sentCursors = nodes.map((node) => ({
-                            value: node.style.getPropertyValue('cursor'),
+                            value: $.getStyle(node, 'cursor'),
                             priority: node.style.getPropertyPriority('cursor'),
                         }));
                     });
@@ -238,14 +240,14 @@ test.describe('Sortable connected containers', () => {
                 });
 
                 expect(await page.locator('#one').evaluate((one) =>
-                    [one, ...one.children].map((node) => ({
-                        value: node.style.getPropertyValue('cursor'),
+                    [one, ...$.children(one)].map((node) => ({
+                        value: $.getStyle(node, 'cursor'),
                         priority: node.style.getPropertyPriority('cursor'),
                     })),
                 )).toEqual(original);
 
                 await page.locator('#one').evaluate((one) => {
-                    for (const node of [one, ...one.children]) {
+                    for (const node of [one, ...$.children(one)]) {
                         const release = $.setStyleLock(node, 'cursor', 'wait');
                         release();
                     }
@@ -258,8 +260,8 @@ test.describe('Sortable connected containers', () => {
                 await page.evaluate(() => $.getData('#destination', 'sortable').dispose());
 
                 expect(await page.locator('#one').evaluate((one) =>
-                    [one, ...one.children].map((node) => ({
-                        value: node.style.getPropertyValue('cursor'),
+                    [one, ...$.children(one)].map((node) => ({
+                        value: $.getStyle(node, 'cursor'),
                         priority: node.style.getPropertyPriority('cursor'),
                     })),
                 )).toEqual(original);

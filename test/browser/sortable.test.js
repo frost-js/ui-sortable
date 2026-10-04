@@ -179,7 +179,7 @@ test.describe('Sortable', () => {
                 return {
                     node: sortable.node,
                     options: sortable.options,
-                    connected: list.isConnected,
+                    connected: $.getProperty(list, 'isConnected'),
                 };
             })).toEqual({ node: null, options: null, connected: false });
 
@@ -233,11 +233,11 @@ test.describe('Sortable', () => {
         for (const { name, items } of [
             {
                 name: 'class',
-                items: () => $.getData('#list', 'sortable').items().map((node) => node.id),
+                items: () => $.getData('#list', 'sortable').items().map((node) => $.getProperty(node, 'id')),
             },
             {
                 name: 'QuerySet',
-                items: () => $('#list').sortable('items').map((node) => node.id),
+                items: () => $('#list').sortable('items').map((node) => $.getProperty(node, 'id')),
             },
         ]) {
             test(`gets the Sortable items (${name})`, async ({ page }) => {
@@ -260,7 +260,7 @@ test.describe('Sortable', () => {
                     items: ':scope > .item',
                 });
 
-                return sortable.items().map((node) => node.id);
+                return sortable.items().map((node) => $.getProperty(node, 'id'));
             })).toEqual(['one', 'two']);
         });
     });
@@ -276,8 +276,8 @@ test.describe('Sortable', () => {
                     'sort.ui.sortable sorting.ui.sortable sorted.ui.sortable update.ui.sortable',
                     (event) => {
                         window.sortableEvents.push({
-                            detailItem: event.detail.item.id,
-                            detailTarget: event.detail.target.id,
+                            detailItem: $.getProperty(event.detail.item, 'id'),
+                            detailTarget: $.getProperty(event.detail.target, 'id'),
                             from: $.getProperty(event.from, 'id'),
                             item: $.getProperty(event.item, 'id'),
                             namespace: event.namespace,
@@ -494,7 +494,7 @@ test.describe('Sortable', () => {
             test(`restores ${name} cursors and releases locks on disposal`, async ({ page }) => {
                 const original = { value, priority };
                 const instance = await page.evaluateHandle(({ value, priority }) => {
-                    $.findOne('#one').style.setProperty('cursor', value, priority);
+                    $.setStyle('#one', 'cursor', value, { important: priority === 'important' });
 
                     return UI.Sortable.init($.findOne('#list'), { cursor: 'grab' });
                 }, original);
@@ -503,7 +503,7 @@ test.describe('Sortable', () => {
                 await instance.evaluate((sortable) => sortable.dispose());
 
                 expect(await page.locator('#one').evaluate((node) => ({
-                    value: node.style.getPropertyValue('cursor'),
+                    value: $.getStyle(node, 'cursor'),
                     priority: node.style.getPropertyPriority('cursor'),
                 }))).toEqual(original);
 
@@ -520,7 +520,7 @@ test.describe('Sortable', () => {
                 await page.evaluate(() => $.getData('#list', 'sortable').dispose());
 
                 expect(await page.locator('#one').evaluate((node) => ({
-                    value: node.style.getPropertyValue('cursor'),
+                    value: $.getStyle(node, 'cursor'),
                     priority: node.style.getPropertyPriority('cursor'),
                 }))).toEqual(original);
             });

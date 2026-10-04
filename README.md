@@ -103,10 +103,11 @@ Sortable targets direct `<li>` children by default:
 ```
 
 ```js
+import $ from '@fr0st/query';
 import Sortable from '@fr0st/ui-sortable';
 
 const sortable = Sortable.init(
-    document.querySelector('#tasks'),
+    $.findOne('#tasks'),
     { cursor: 'grab' },
 );
 ```
@@ -130,7 +131,7 @@ Cancel checks include ancestors of the handle up to, but not including, the sort
 ```
 
 ```js
-Sortable.init(document.querySelector('#tasks'), {
+Sortable.init($.findOne('#tasks'), {
     cursor: 'grab',
     handle: '.drag-handle',
 });
@@ -157,7 +158,7 @@ Initialize each container with a shared `connectWith` selector. Give empty conta
 ```
 
 ```js
-document.querySelectorAll('.connected').forEach((node) => {
+$.find('.connected').forEach((node) => {
     Sortable.init(node, {
         connectWith: '.connected',
         cursor: 'grab',
