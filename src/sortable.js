@@ -56,15 +56,15 @@ export default class Sortable extends BaseComponent {
     };
 
     #currentIndex;
-    #currentSortable;
+    #currentSortable = null;
     #dragging;
     #enabled;
     #initialCursorNodes = [];
-    #pos;
-    #scrollFrame;
+    #pos = null;
+    #scrollFrame = null;
     #selector;
     #startIndex;
-    #target;
+    #target = null;
 
     /**
      * Creates a Sortable.
@@ -193,7 +193,7 @@ export default class Sortable extends BaseComponent {
      * Attaches events for the Sortable.
      */
     #events() {
-        const downEvent = (event) => {
+        const downHandler = (event) => {
             const cancelled = this.options.cancel &&
                 (
                     $.is(event.target, this.options.cancel) ||
@@ -219,7 +219,7 @@ export default class Sortable extends BaseComponent {
             }
         };
 
-        const moveEvent = (event) => {
+        const moveHandler = (event) => {
             if (!this.node || !this.#target) {
                 return;
             }
@@ -265,7 +265,7 @@ export default class Sortable extends BaseComponent {
             this.#scheduleScroll();
         };
 
-        const upEvent = (event) => {
+        const upHandler = (event) => {
             if (!this.node) {
                 return;
             }
@@ -315,13 +315,13 @@ export default class Sortable extends BaseComponent {
             }
         };
 
-        const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
+        const dragHandler = $.mouseDragFactory(downHandler, moveHandler, upHandler);
 
         $.addEventDelegate(
             this.node,
             'mousedown.ui.sortable touchstart.ui.sortable',
             this.#selector,
-            dragEvent,
+            dragHandler,
         );
 
         $.addEvent(this.node, 'receive.ui.sortable', () => {
@@ -333,7 +333,7 @@ export default class Sortable extends BaseComponent {
      * Resets the active drag state.
      */
     #resetDrag() {
-        if (this.#scrollFrame !== null && this.#scrollFrame !== undefined) {
+        if (this.#scrollFrame !== null) {
             window.cancelAnimationFrame(this.#scrollFrame);
         }
 
@@ -358,7 +358,7 @@ export default class Sortable extends BaseComponent {
             !this.node ||
             !this.options.scroll ||
             !this.#dragging ||
-            this.#scrollFrame !== null && this.#scrollFrame !== undefined
+            this.#scrollFrame !== null
         ) {
             return;
         }

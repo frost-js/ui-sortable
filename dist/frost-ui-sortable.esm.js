@@ -92,15 +92,15 @@ var Sortable = class extends BaseComponent {
 		swapThreshold: .25
 	};
 	#currentIndex;
-	#currentSortable;
+	#currentSortable = null;
 	#dragging;
 	#enabled;
 	#initialCursorNodes = [];
-	#pos;
-	#scrollFrame;
+	#pos = null;
+	#scrollFrame = null;
 	#selector;
 	#startIndex;
-	#target;
+	#target = null;
 	/**
 	* Creates a Sortable.
 	* @param {HTMLElement} node The sortable container.
@@ -192,13 +192,13 @@ var Sortable = class extends BaseComponent {
 	* Attaches events for the Sortable.
 	*/
 	#events() {
-		const downEvent = (event) => {
+		const downHandler = (event) => {
 			const cancelled = this.options.cancel && ($.is(event.target, this.options.cancel) || $.is(event.currentTarget, this.options.cancel) || $.closest(event.target, this.options.cancel, this.node).length);
 			if (event.button || !this.#enabled || cancelled || $.getDataset(this.node, "uiDragging")) return false;
 			this.#target = this.options.handle ? this.items().find((node) => $.hasDescendent(node, event.currentTarget)) : event.currentTarget;
 			if (!this.#target) return false;
 		};
-		const moveEvent = (event) => {
+		const moveHandler = (event) => {
 			if (!this.node || !this.#target) return;
 			const previousPos = this.#pos;
 			this.#pos = getPosition(event);
@@ -225,7 +225,7 @@ var Sortable = class extends BaseComponent {
 			this.#updatePlacement(deltaX, deltaY);
 			this.#scheduleScroll();
 		};
-		const upEvent = (event) => {
+		const upHandler = (event) => {
 			if (!this.node) return;
 			if (!this.#dragging) {
 				this.#target = null;
@@ -251,8 +251,8 @@ var Sortable = class extends BaseComponent {
 			} else if (this.#currentIndex !== this.#startIndex) triggerSortableEvent(destination, "update", eventData);
 			if (this.node) this.#resetDrag();
 		};
-		const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
-		$.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
+		const dragHandler = $.mouseDragFactory(downHandler, moveHandler, upHandler);
+		$.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragHandler);
 		$.addEvent(this.node, "receive.ui.sortable", () => {
 			setCursor($.find(this.#selector, this.node), this.options.cursor);
 		});
@@ -261,7 +261,7 @@ var Sortable = class extends BaseComponent {
 	* Resets the active drag state.
 	*/
 	#resetDrag() {
-		if (this.#scrollFrame !== null && this.#scrollFrame !== void 0) window.cancelAnimationFrame(this.#scrollFrame);
+		if (this.#scrollFrame !== null) window.cancelAnimationFrame(this.#scrollFrame);
 		if (this.#dragging && this.node) $.removeDataset(this.node, "uiDragging");
 		this.#currentIndex = null;
 		this.#currentSortable = null;
@@ -275,7 +275,7 @@ var Sortable = class extends BaseComponent {
 	* Schedules the next auto-scroll update.
 	*/
 	#scheduleScroll() {
-		if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null && this.#scrollFrame !== void 0) return;
+		if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null) return;
 		this.#scrollFrame = window.requestAnimationFrame(() => {
 			this.#checkScroll();
 		});

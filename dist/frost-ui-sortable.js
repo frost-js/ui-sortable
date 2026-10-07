@@ -124,15 +124,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			swapThreshold: .25
 		};
 		#currentIndex;
-		#currentSortable;
+		#currentSortable = null;
 		#dragging;
 		#enabled;
 		#initialCursorNodes = [];
-		#pos;
-		#scrollFrame;
+		#pos = null;
+		#scrollFrame = null;
 		#selector;
 		#startIndex;
-		#target;
+		#target = null;
 		/**
 		* Creates a Sortable.
 		* @param {HTMLElement} node The sortable container.
@@ -224,13 +224,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches events for the Sortable.
 		*/
 		#events() {
-			const downEvent = (event) => {
+			const downHandler = (event) => {
 				const cancelled = this.options.cancel && (_fr0st_query.default.is(event.target, this.options.cancel) || _fr0st_query.default.is(event.currentTarget, this.options.cancel) || _fr0st_query.default.closest(event.target, this.options.cancel, this.node).length);
 				if (event.button || !this.#enabled || cancelled || _fr0st_query.default.getDataset(this.node, "uiDragging")) return false;
 				this.#target = this.options.handle ? this.items().find((node) => _fr0st_query.default.hasDescendent(node, event.currentTarget)) : event.currentTarget;
 				if (!this.#target) return false;
 			};
-			const moveEvent = (event) => {
+			const moveHandler = (event) => {
 				if (!this.node || !this.#target) return;
 				const previousPos = this.#pos;
 				this.#pos = (0, _fr0st_ui.getPosition)(event);
@@ -257,7 +257,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#updatePlacement(deltaX, deltaY);
 				this.#scheduleScroll();
 			};
-			const upEvent = (event) => {
+			const upHandler = (event) => {
 				if (!this.node) return;
 				if (!this.#dragging) {
 					this.#target = null;
@@ -283,8 +283,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				} else if (this.#currentIndex !== this.#startIndex) triggerSortableEvent(destination, "update", eventData);
 				if (this.node) this.#resetDrag();
 			};
-			const dragEvent = _fr0st_query.default.mouseDragFactory(downEvent, moveEvent, upEvent);
-			_fr0st_query.default.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragEvent);
+			const dragHandler = _fr0st_query.default.mouseDragFactory(downHandler, moveHandler, upHandler);
+			_fr0st_query.default.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragHandler);
 			_fr0st_query.default.addEvent(this.node, "receive.ui.sortable", () => {
 				setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
 			});
@@ -293,7 +293,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Resets the active drag state.
 		*/
 		#resetDrag() {
-			if (this.#scrollFrame !== null && this.#scrollFrame !== void 0) window.cancelAnimationFrame(this.#scrollFrame);
+			if (this.#scrollFrame !== null) window.cancelAnimationFrame(this.#scrollFrame);
 			if (this.#dragging && this.node) _fr0st_query.default.removeDataset(this.node, "uiDragging");
 			this.#currentIndex = null;
 			this.#currentSortable = null;
@@ -307,7 +307,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Schedules the next auto-scroll update.
 		*/
 		#scheduleScroll() {
-			if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null && this.#scrollFrame !== void 0) return;
+			if (!this.node || !this.options.scroll || !this.#dragging || this.#scrollFrame !== null) return;
 			this.#scrollFrame = window.requestAnimationFrame(() => {
 				this.#checkScroll();
 			});
