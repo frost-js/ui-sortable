@@ -105,8 +105,6 @@ export default class Sortable extends BaseComponent {
             return;
         }
 
-        $.removeEventDelegate(this.node, 'mousedown.ui.sortable touchstart.ui.sortable');
-        $.removeEvent(this.node, 'receive.ui.sortable');
         resetCursor(this.#initialCursorNodes ?? $.find(this.#selector, this.node));
 
         if (this.#target && this.options.helperClass) {
@@ -317,14 +315,14 @@ export default class Sortable extends BaseComponent {
 
         const dragHandler = $.mouseDragFactory(downHandler, moveHandler, upHandler);
 
-        $.addEventDelegate(
+        this.listen(
             this.node,
             'mousedown.ui.sortable touchstart.ui.sortable',
-            this.#selector,
             dragHandler,
+            { delegate: this.#selector },
         );
 
-        $.addEvent(this.node, 'receive.ui.sortable', () => {
+        this.listen(this.node, 'receive.ui.sortable', () => {
             setCursor($.find(this.#selector, this.node), this.options.cursor);
         });
     }

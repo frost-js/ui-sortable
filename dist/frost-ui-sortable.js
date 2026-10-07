@@ -162,8 +162,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		/** @inheritdoc */
 		dispose() {
 			if (!this.node) return;
-			_fr0st_query.default.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
-			_fr0st_query.default.removeEvent(this.node, "receive.ui.sortable");
 			resetCursor(this.#initialCursorNodes ?? _fr0st_query.default.find(this.#selector, this.node));
 			if (this.#target && this.options.helperClass) _fr0st_query.default.removeClass(this.#target, this.options.helperClass);
 			this.#resetDrag();
@@ -284,8 +282,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.node) this.#resetDrag();
 			};
 			const dragHandler = _fr0st_query.default.mouseDragFactory(downHandler, moveHandler, upHandler);
-			_fr0st_query.default.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragHandler);
-			_fr0st_query.default.addEvent(this.node, "receive.ui.sortable", () => {
+			this.listen(this.node, "mousedown.ui.sortable touchstart.ui.sortable", dragHandler, { delegate: this.#selector });
+			this.listen(this.node, "receive.ui.sortable", () => {
 				setCursor(_fr0st_query.default.find(this.#selector, this.node), this.options.cursor);
 			});
 		}

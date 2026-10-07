@@ -130,8 +130,6 @@ var Sortable = class extends BaseComponent {
 	/** @inheritdoc */
 	dispose() {
 		if (!this.node) return;
-		$.removeEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable");
-		$.removeEvent(this.node, "receive.ui.sortable");
 		resetCursor(this.#initialCursorNodes ?? $.find(this.#selector, this.node));
 		if (this.#target && this.options.helperClass) $.removeClass(this.#target, this.options.helperClass);
 		this.#resetDrag();
@@ -252,8 +250,8 @@ var Sortable = class extends BaseComponent {
 			if (this.node) this.#resetDrag();
 		};
 		const dragHandler = $.mouseDragFactory(downHandler, moveHandler, upHandler);
-		$.addEventDelegate(this.node, "mousedown.ui.sortable touchstart.ui.sortable", this.#selector, dragHandler);
-		$.addEvent(this.node, "receive.ui.sortable", () => {
+		this.listen(this.node, "mousedown.ui.sortable touchstart.ui.sortable", dragHandler, { delegate: this.#selector });
+		this.listen(this.node, "receive.ui.sortable", () => {
 			setCursor($.find(this.#selector, this.node), this.options.cursor);
 		});
 	}

@@ -158,6 +158,25 @@ test.describe('Sortable', () => {
             });
         }
 
+        test('preserves consumer receive listeners registered before and after initialization', async ({ page }) => {
+            const events = await page.evaluate(() => {
+                const node = $.findOne('#list');
+                const events = [];
+                $.addEvent(node, 'receive.ui.sortable', (event) => events.push(`before:${event.type}`));
+
+                const instance = UI.Sortable.init(node);
+                $.addEvent(node, 'receive.ui.sortable', (event) => events.push(`after:${event.type}`));
+
+                instance.dispose();
+                instance.dispose();
+                $.triggerEvent(node, 'receive.ui.sortable');
+
+                return events;
+            });
+
+            expect(events).toEqual(['before:receive', 'after:receive']);
+        });
+
         test('can be called multiple times', async ({ page }) => {
             await page.evaluate(() => {
                 const sortable = UI.Sortable.init($.findOne('#list'));
