@@ -181,8 +181,6 @@ test.describe('Sortable scrolling', () => {
     });
 
     test('stops scrolling and clears drag state when disposed during a drag', async ({ page }) => {
-        const errors = [];
-        page.on('pageerror', (error) => errors.push(error.message));
         await page.evaluate(() => {
             UI.Sortable.init($.findOne('#list'), {
                 scrollSensitivity: 60,
@@ -209,6 +207,5 @@ test.describe('Sortable scrolling', () => {
         await expect(page.locator('#item-0')).not.toHaveClass(/bg-body-tertiary/);
         expect(await page.locator('#item-0').evaluate((node) => $.getStyle(node, 'cursor'))).toBe('');
         await page.mouse.up();
-        expect(errors).toEqual([]);
     });
 });

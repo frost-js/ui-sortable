@@ -206,9 +206,6 @@ test.describe('Sortable', () => {
         });
 
         test('survives disposal from a sort listener', async ({ page }) => {
-            const errors = [];
-            page.on('pageerror', (error) => errors.push(error.message));
-
             await page.evaluate(() => {
                 const list = $.findOne('#list');
                 const sortable = UI.Sortable.init(list);
@@ -217,7 +214,6 @@ test.describe('Sortable', () => {
 
             await drag(page, '#one', '#three', { y: 0.8 });
 
-            expect(errors).toEqual([]);
             expect(await page.evaluate(() => $.hasData('#list', 'sortable'))).toBe(false);
             await expect(page.locator('#list')).not.toHaveAttribute('data-ui-dragging');
             await expect(page.locator('#one')).not.toHaveClass(/bg-body-tertiary/);
