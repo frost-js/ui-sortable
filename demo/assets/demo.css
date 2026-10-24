@@ -26,6 +26,7 @@ section[id],
 }
 
 .demo-sortable-horizontal {
+    min-height: 0;
     overflow-x: auto;
 }
 
