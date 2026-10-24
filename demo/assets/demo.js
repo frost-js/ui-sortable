@@ -1,5 +1,5 @@
 const $ = globalThis.fQuery;
-const UI = globalThis.UI;
+const { Sortable } = globalThis.UI;
 const themeKey = 'frostui-sortable-demo-theme';
 
 const setTheme = (theme) => {
@@ -77,7 +77,7 @@ $.ready(() => {
 
         switch (method) {
             case 'init':
-                UI.Sortable.init($.findOne('#methods-list'));
+                Sortable.init($.findOne('#methods-list'));
                 $.setText('#method-output', current ? 'Already initialized.' : 'Initialized.');
                 break;
             case 'dispose':
@@ -89,11 +89,11 @@ $.ready(() => {
                 }
                 break;
             case 'enable':
-                UI.Sortable.init($.findOne('#methods-list')).enable();
+                Sortable.init($.findOne('#methods-list')).enable();
                 $.setText('#method-output', 'Enabled.');
                 break;
             case 'disable':
-                UI.Sortable.init($.findOne('#methods-list')).disable();
+                Sortable.init($.findOne('#methods-list')).disable();
                 $.setText('#method-output', 'Disabled.');
                 break;
         }
