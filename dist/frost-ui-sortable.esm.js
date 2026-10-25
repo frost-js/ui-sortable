@@ -1,7 +1,7 @@
 import { BaseComponent, getPosition, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
-//#region src/helpers.js
+// src/helpers.js
 /** @import { SortableEventData } from './sortable.js'; */
 var cursorLocks = /* @__PURE__ */ new WeakMap();
 /**
@@ -41,8 +41,7 @@ function triggerSortableEvent(node, name, data) {
 	});
 }
 
-//#endregion
-//#region src/sortable.js
+// src/sortable.js
 var document = $.getContext();
 var window = $.getWindow();
 /** @typedef {'x'|'y'} SortableAxis */
@@ -358,11 +357,9 @@ var Sortable = class extends BaseComponent {
 	}
 };
 
-//#endregion
-//#region src/index.js
+// src/index.js
 initComponent("sortable", Sortable);
 var src_default = Sortable;
 
-//#endregion
 export { src_default as default };
 //# sourceMappingURL=frost-ui-sortable.esm.js.map
